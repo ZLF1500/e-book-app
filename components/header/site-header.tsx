@@ -1388,7 +1388,7 @@ export function SiteHeader() {
               </>
             )}
           </Link>
-          {isGuest ? (
+          {!user ? (
             <div className="flex items-center gap-1 sm:gap-1.5">
               <Link href="/masuk">
                 <Button variant="ghost" size="sm" className="h-8 sm:h-9 px-2 sm:px-3 text-xs font-semibold text-foreground hover:text-sky-600">
