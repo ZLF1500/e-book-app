@@ -57,7 +57,7 @@ export function FeaturedBooksSection() {
           {featuredBooks.map((book) => (
             <div
               key={book.id}
-              className="flex flex-col justify-between rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 p-4 hover:border-sky-400/50 hover:bg-white/15 transition-all duration-300 group"
+              className="flex flex-col justify-between rounded-2xl bg-white/10 sm:backdrop-blur-md border border-white/15 p-4 hover:border-sky-400/50 hover:bg-white/15 transition-[border-color,background-color] duration-200 group"
             >
               <div className="flex gap-4">
                 <Link
@@ -68,7 +68,9 @@ export function FeaturedBooksSection() {
                   <img
                     src={book.coverUrl}
                     alt={book.title}
-                    className="h-32 w-24 rounded-xl object-cover shadow-lg ring-1 ring-white/20 group-hover:scale-105 transition-transform"
+                    loading="lazy"
+                    decoding="async"
+                    className="h-32 w-24 rounded-xl object-cover shadow-lg ring-1 ring-white/20 group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                   />
                 </Link>
 

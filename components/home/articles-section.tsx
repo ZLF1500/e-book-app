@@ -81,7 +81,7 @@ export function ArticlesSection() {
             <div
               key={article.id}
               onClick={() => setSelectedArticle(article)}
-              className="group flex flex-col justify-between rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden shadow-2xs hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all duration-300 cursor-pointer"
+              className="group flex flex-col justify-between rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden shadow-2xs hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-[border-color,box-shadow] duration-200 cursor-pointer content-visibility-auto"
             >
               {/* Thumbnail with bottom-right badge */}
               <div className="relative aspect-[16/10] w-full overflow-hidden bg-neutral-100 dark:bg-neutral-800">
@@ -89,10 +89,11 @@ export function ArticlesSection() {
                   src={article.thumbnailUrl}
                   alt={article.title}
                   loading="lazy"
-                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  decoding="async"
+                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                 />
                 <div className="absolute bottom-2.5 right-2.5">
-                  <span className="rounded-full bg-black/60 backdrop-blur-xs px-2 py-0.5 text-[9px] font-semibold text-white">
+                  <span className="rounded-full bg-black/75 sm:backdrop-blur-xs px-2 py-0.5 text-[9px] font-semibold text-white">
                     {article.category}
                   </span>
                 </div>

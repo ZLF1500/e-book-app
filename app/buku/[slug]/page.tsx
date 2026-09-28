@@ -818,7 +818,9 @@ export default function BookDetailPage() {
               <img
                 src={book.coverUrl}
                 alt={book.title}
-                className="relative z-1 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                fetchPriority="high"
+                decoding="async"
+                className="relative z-1 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none"
               />
 
               {/* 3D Realistic Book Spine Effect */}
@@ -880,9 +882,9 @@ export default function BookDetailPage() {
             <button
               type="button"
               onClick={() => setIsReportDialogOpen(true)}
-              className="w-full max-w-[210px] sm:max-w-xs mt-2.5 flex items-center justify-center gap-1.5 text-xs text-neutral-500 hover:text-amber-600 py-1 font-medium transition-colors cursor-pointer"
+              className="w-auto inline-flex items-center justify-center gap-1.5 text-xs text-neutral-500 hover:text-amber-600 py-1 px-2 font-medium transition-colors cursor-pointer text-center"
             >
-              <HelpCircle className="h-3.5 w-3.5" />
+              <HelpCircle className="h-3.5 w-3.5 shrink-0" />
               <span>Laporkan File Rusak / Kendala Buku</span>
             </button>
           </div>
@@ -925,11 +927,11 @@ export default function BookDetailPage() {
               </div>
 
               {/* Rating & Siap Dibaca Indicator */}
-              <div className="flex items-center gap-3 pt-1 text-xs">
-                <div className="flex items-center gap-1.5 font-bold text-neutral-900 dark:text-neutral-100">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-neutral-900 dark:text-neutral-100 whitespace-nowrap">
                   {displayReviewCount > 0 ? (
                     <>
-                      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" />
                       <span>{displayRating}</span>
                       <span className="font-normal text-neutral-500">
                         ({displayReviewCount} ulasan)
@@ -937,19 +939,19 @@ export default function BookDetailPage() {
                     </>
                   ) : (
                     <>
-                      <Star className="h-4 w-4 text-neutral-300 dark:text-neutral-700" />
+                      <Star className="h-3.5 w-3.5 text-neutral-300 dark:text-neutral-700 shrink-0" />
                       <span className="font-medium text-neutral-500">Belum ada rating</span>
                       <span className="font-normal text-neutral-400">(0 ulasan)</span>
                     </>
                   )}
                 </div>
-                <span>&bull;</span>
-                <span className="text-neutral-600 dark:text-neutral-400 font-medium">
+                <span className="text-neutral-300 dark:text-neutral-700 hidden xs:inline">&bull;</span>
+                <span className="text-neutral-600 dark:text-neutral-400 font-medium whitespace-nowrap">
                   {book.loanCount || 0} kali dibaca
                 </span>
-                <span>&bull;</span>
-                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                <span className="text-neutral-300 dark:text-neutral-700 hidden xs:inline">&bull;</span>
+                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold whitespace-nowrap">
+                  <Check className="h-3.5 w-3.5 stroke-[3] shrink-0" />
                   <span>Siap Dibaca</span>
                 </div>
               </div>
@@ -1247,6 +1249,8 @@ export default function BookDetailPage() {
                       <img
                         src={rev.userAvatar}
                         alt={rev.userName}
+                        loading="lazy"
+                        decoding="async"
                         referrerPolicy="no-referrer"
                         className="h-8 w-8 rounded-full object-cover ring-1 ring-neutral-200"
                       />

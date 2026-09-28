@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import https from "https"
 import { queryOne, execute } from "@/lib/db"
 import { createSignedToken } from "@/lib/auth-crypto"
+import { getAppBaseUrl, getSafeRedirectUrl, getActiveTunnelUrl } from "@/lib/url-helper"
 
 interface UserRow {
   id: number
@@ -81,20 +82,75 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get("code")
   const error = searchParams.get("error")
+  const state = searchParams.get("state")
+
+  const currentOrigin = getAppBaseUrl(request)
+  let origin = currentOrigin
+  let returnTo = "/"
+  let originalRedirectUri: string | null = null
+
+  // 1. Ekstrak informasi origin asal dan target pengembalian dari parameter state
+  if (state) {
+    try {
+      const decodedState = JSON.parse(Buffer.from(state, "base64url").toString("utf8"))
+      if (decodedState && typeof decodedState === "object") {
+        if (decodedState.origin && typeof decodedState.origin === "string") {
+          origin = decodedState.origin
+        }
+        if (decodedState.returnTo && typeof decodedState.returnTo === "string") {
+          returnTo = decodedState.returnTo
+        }
+        if (decodedState.redirectUri && typeof decodedState.redirectUri === "string") {
+          originalRedirectUri = decodedState.redirectUri
+        }
+      }
+    } catch {
+      // Format state lama atau string biasa
+    }
+  }
+
+  // Cek cookie fallback jika state tidak memuat data di atas
+  const cookieHeader = request.headers.get("cookie") || ""
+  if (!originalRedirectUri && cookieHeader.includes("rsjd_oauth_redirect_uri=")) {
+    const match = cookieHeader.match(/rsjd_oauth_redirect_uri=([^;]+)/)
+    if (match?.[1]) {
+      originalRedirectUri = decodeURIComponent(match[1])
+    }
+  }
+
+  // Jika origin masih localhost, periksa apakah cloudflared tunnel sedang aktif di sistem
+  if (origin.includes("localhost") || origin.startsWith("http://127.0.0.1")) {
+    const activeTunnel = await getActiveTunnelUrl()
+    if (activeTunnel) {
+      origin = activeTunnel
+    }
+  }
+
+  const isHttps = origin.startsWith("https://") || currentOrigin.startsWith("https://")
 
   if (error || !code) {
     return NextResponse.redirect(
-      new URL(`/masuk?error=${encodeURIComponent(error || "google_code_missing")}`, request.url)
+      getSafeRedirectUrl(
+        `/masuk?error=${encodeURIComponent(error || "google_code_missing")}`,
+        request,
+        origin
+      )
     )
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  const redirectUri = `${appUrl}/api/auth/google/callback`
+
+  // Redirect URI yang digunakan untuk token exchange HARUS persis sama dengan yang dikirim ke Google saat authorize
+  const redirectUri =
+    originalRedirectUri ||
+    process.env.GOOGLE_REDIRECT_URI ||
+    `${origin}/api/auth/google/callback`
 
   if (!clientId || !clientSecret) {
-    return NextResponse.redirect(new URL("/masuk?error=google_not_configured", request.url))
+    return NextResponse.redirect(
+      getSafeRedirectUrl("/masuk?error=google_not_configured", request, origin)
+    )
   }
 
   try {
@@ -118,7 +174,9 @@ export async function GET(request: Request) {
       if (!tokenResponse.ok) {
         const errBody = await tokenResponse.text().catch(() => "")
         console.warn("Google token exchange error:", tokenResponse.status, errBody)
-        return NextResponse.redirect(new URL("/masuk?error=google_token_failed", request.url))
+        return NextResponse.redirect(
+          getSafeRedirectUrl("/masuk?error=google_token_failed", request, origin)
+        )
       }
 
       tokenData = await tokenResponse.json()
@@ -133,7 +191,9 @@ export async function GET(request: Request) {
       })
       if (res.status !== 200) {
         console.warn("Google token fallback error:", res.status, res.text)
-        return NextResponse.redirect(new URL("/masuk?error=google_token_failed", request.url))
+        return NextResponse.redirect(
+          getSafeRedirectUrl("/masuk?error=google_token_failed", request, origin)
+        )
       }
       tokenData = JSON.parse(res.text)
     }
@@ -152,7 +212,9 @@ export async function GET(request: Request) {
       if (!profileResponse.ok) {
         const errBody = await profileResponse.text().catch(() => "")
         console.warn("Google userinfo error:", profileResponse.status, errBody)
-        return NextResponse.redirect(new URL("/masuk?error=google_userinfo_failed", request.url))
+        return NextResponse.redirect(
+          getSafeRedirectUrl("/masuk?error=google_userinfo_failed", request, origin)
+        )
       }
 
       profile = await profileResponse.json()
@@ -160,7 +222,9 @@ export async function GET(request: Request) {
       console.warn("Fetch failed on userinfo, falling back to https.request:", profileFetchErr)
       const res = await getJsonHttps("https://www.googleapis.com/oauth2/v3/userinfo", access_token)
       if (res.status !== 200) {
-        return NextResponse.redirect(new URL("/masuk?error=google_userinfo_failed", request.url))
+        return NextResponse.redirect(
+          getSafeRedirectUrl("/masuk?error=google_userinfo_failed", request, origin)
+        )
       }
       profile = JSON.parse(res.text)
     }
@@ -168,7 +232,9 @@ export async function GET(request: Request) {
     const { sub: googleId, name, email, picture } = profile
 
     if (!email) {
-      return NextResponse.redirect(new URL("/masuk?error=google_email_missing", request.url))
+      return NextResponse.redirect(
+        getSafeRedirectUrl("/masuk?error=google_email_missing", request, origin)
+      )
     }
 
     // 3. Upsert User in MySQL database (Native Query)
@@ -252,15 +318,23 @@ export async function GET(request: Request) {
       role: user.role,
     })
 
-    const redirectUrl = new URL("/?google_success=1", request.url)
+    // Bangun URL redirect ke origin asal (misal domain tunnel), BUKAN ke localhost internal
+    const redirectPath = returnTo && returnTo !== "/" ? returnTo : "/"
+    const redirectUrl = getSafeRedirectUrl(redirectPath, request, origin)
+    redirectUrl.searchParams.set("google_success", "1")
     redirectUrl.searchParams.set("auth_data", encodedUser)
+
+    // Jika terjadi handoff antar origin (misal login diawali dari tunnel tapi callback mampir ke localhost)
+    if (origin !== currentOrigin) {
+      redirectUrl.searchParams.set("session_handoff", sessionToken)
+    }
 
     const response = NextResponse.redirect(redirectUrl)
 
     // Sesi aman HttpOnly untuk autentikasi server-side
     response.cookies.set("rsjd_session_token", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" || isHttps,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: "/",
@@ -268,11 +342,16 @@ export async function GET(request: Request) {
 
     response.cookies.set("rsjd_auth_user", encodeURIComponent(userPayloadJson), {
       httpOnly: false, // Accessible by client auth-context
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" || isHttps,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
     })
+
+    // Bersihkan cookie oauth temporary
+    response.cookies.set("rsjd_oauth_state", "", { path: "/", maxAge: 0 })
+    response.cookies.set("rsjd_oauth_origin", "", { path: "/", maxAge: 0 })
+    response.cookies.set("rsjd_oauth_redirect_uri", "", { path: "/", maxAge: 0 })
 
     return response
   } catch (err: unknown) {
@@ -282,7 +361,11 @@ export async function GET(request: Request) {
     console.error("[Google OAuth Error]:", error, "Cause:", error.cause)
     const encodedReason = encodeURIComponent(fullReason.slice(0, 120))
     return NextResponse.redirect(
-      new URL(`/masuk?error=internal_oauth_error&details=${encodedReason}`, request.url)
+      getSafeRedirectUrl(
+        `/masuk?error=internal_oauth_error&details=${encodedReason}`,
+        request,
+        origin
+      )
     )
   }
 }

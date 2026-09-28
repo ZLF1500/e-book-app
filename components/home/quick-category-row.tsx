@@ -105,13 +105,14 @@ export function QuickCategoryRow() {
               <Link
                 key={cat.slug}
                 href={`/buku?category=${encodeURIComponent(cat.slug)}`}
-                className="group relative h-28 sm:h-32 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition-all duration-300 active:scale-[0.98] border border-neutral-200/60 dark:border-neutral-800/60 hover:-translate-y-1"
+                className="group relative h-28 sm:h-32 rounded-2xl overflow-hidden shadow-xs hover:shadow-lg transition-[transform,box-shadow] duration-200 active:scale-[0.98] border border-neutral-200/60 dark:border-neutral-800/60 hover:-translate-y-1"
               >
                 <img
                   src={cat.imageUrl}
                   alt={cat.name}
                   loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  decoding="async"
+                  className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                 />
                 {/* Subtle dark gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10 group-hover:from-black/90 transition-colors" />

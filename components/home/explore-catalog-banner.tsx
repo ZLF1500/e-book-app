@@ -29,13 +29,13 @@ export function ExploreCatalogBanner() {
   }, [])
 
   return (
-    <section className="w-full py-12 bg-gradient-to-b from-neutral-50/60 to-white dark:from-neutral-900/40 dark:to-neutral-950 border-t border-neutral-200/80 dark:border-neutral-800/80">
+    <section className="w-full py-12 bg-gradient-to-b from-neutral-50/60 to-white dark:from-neutral-900/40 dark:to-neutral-950 border-t border-neutral-200/80 dark:border-neutral-800/80 content-visibility-auto">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-3xl border border-sky-200/80 dark:border-sky-900/60 bg-gradient-to-br from-sky-50 via-white to-blue-50/50 dark:from-neutral-900 dark:via-neutral-900/90 dark:to-sky-950/30 p-6 sm:p-10 shadow-sm">
           
           {/* Decorative Background Accents */}
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-sky-400/10 blur-3xl" />
-          <div className="pointer-events-none absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-sky-400/10 blur-2xl sm:blur-3xl" />
+          <div className="pointer-events-none absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-blue-500/10 blur-2xl sm:blur-3xl" />
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
             

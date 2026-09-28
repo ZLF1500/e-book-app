@@ -2291,30 +2291,6 @@ export default function AdminPage() {
           {/* Right Actions */}
           <div className="flex items-center gap-2 sm:gap-2.5">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchAdminData}
-              disabled={isLoadingData}
-              className="h-8 px-2.5 text-xs rounded-xl gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground"
-              title="Segarkan data dari server"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", isLoadingData && "animate-spin")} />
-              <span className="hidden md:inline">Segarkan</span>
-            </Button>
-
-            <Link href="/buku" target="_blank">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2.5 sm:px-3 text-xs rounded-xl gap-1.5 cursor-pointer text-muted-foreground hover:text-foreground"
-                title="Buka Website Publik di Tab Baru"
-              >
-                <ExternalLink className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
-                <span className="hidden sm:inline">Web Publik</span>
-              </Button>
-            </Link>
-
-            <Button
               variant="ghost"
               size="sm"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -2390,21 +2366,21 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2.5 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={fetchAdminData}
                 disabled={isLoadingData}
-                className="h-9 px-3 text-xs rounded-xl gap-1.5 cursor-pointer"
+                className="w-full sm:w-40 h-9 px-3 text-xs font-semibold rounded-xl gap-1.5 cursor-pointer justify-center whitespace-nowrap shadow-xs"
               >
-                <RefreshCw className={cn("h-3.5 w-3.5", isLoadingData && "animate-spin")} />
-                <span>Segarkan Data</span>
+                <RefreshCw className={cn("h-3.5 w-3.5 shrink-0", isLoadingData && "animate-spin")} />
+                <span className="truncate">Segarkan Data</span>
               </Button>
-              <Link href="/buku" target="_blank">
-                <Button variant="outline" size="sm" className="h-9 px-3 text-xs rounded-xl gap-1.5 cursor-pointer">
-                  <BookOpen className="h-3.5 w-3.5 text-sky-600" />
-                  <span>Lihat Katalog Publik</span>
+              <Link href="/buku" target="_blank" className="w-full sm:w-auto block">
+                <Button variant="outline" size="sm" className="w-full sm:w-40 h-9 px-3 text-xs font-semibold rounded-xl gap-1.5 cursor-pointer justify-center whitespace-nowrap shadow-xs">
+                  <BookOpen className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+                  <span className="truncate">Katalog Publik</span>
                 </Button>
               </Link>
             </div>
@@ -2495,105 +2471,105 @@ export default function AdminPage() {
         )}
 
         {/* MAIN NAVIGATION TABS */}
-        <div className="flex items-center gap-2 sm:gap-3 border-b border-border overflow-x-auto pb-1 text-xs font-semibold">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:flex lg:flex-wrap items-center gap-2 border-b border-border pb-3.5 text-xs font-semibold">
           <button
             type="button"
             onClick={() => { setActiveTab("buku"); setSearchTerm("") }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
               activeTab === "buku"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <BookOpen className="h-3.5 w-3.5" />
-            <span>Manajemen Buku ({booksList.length})</span>
+            <BookOpen className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Buku ({booksList.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveTab("kategori"); setSearchTerm("") }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
               activeTab === "kategori"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <FolderTree className="h-3.5 w-3.5" />
-            <span>Kategori ({categoriesList.length})</span>
+            <FolderTree className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Kategori ({categoriesList.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveTab("tag"); setSearchTerm("") }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
               activeTab === "tag"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <Tag className="h-3.5 w-3.5" />
-            <span>Tag Topik ({tagsList.length})</span>
+            <Tag className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Tag Topik ({tagsList.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveTab("artikel"); setSearchTerm("") }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
               activeTab === "artikel"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <Newspaper className="h-3.5 w-3.5" />
-            <span>Blog & Edukasi ({articlesList.length})</span>
+            <Newspaper className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Blog ({articlesList.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveTab("pengguna"); setSearchTerm("") }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
               activeTab === "pengguna"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <Users className="h-3.5 w-3.5" />
-            <span>Pengguna ({usersList.length})</span>
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Pengguna ({usersList.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveTab("peminjam"); setSearchTerm("") }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
               activeTab === "peminjam"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <BookMarked className="h-3.5 w-3.5" />
-            <span>Monitor Peminjaman</span>
+            <BookMarked className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Peminjaman ({loansList.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => { setActiveTab("laporan"); setSearchTerm("") }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer relative",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs relative",
               activeTab === "laporan"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <AlertTriangle className={cn("h-3.5 w-3.5", reportsList.some(r => r.status === "baru") && "text-amber-500")} />
-            <span>Laporan Berkas ({reportsList.length})</span>
+            <AlertTriangle className={cn("h-3.5 w-3.5 shrink-0", reportsList.some(r => r.status === "baru") && "text-amber-500")} />
+            <span className="truncate">Laporan ({reportsList.length})</span>
             {reportsList.filter(r => r.status === "baru").length > 0 && (
-              <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold">
+              <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-amber-500 text-white text-[10px] font-bold shrink-0">
                 {reportsList.filter(r => r.status === "baru").length}
               </span>
             )}
@@ -2603,14 +2579,14 @@ export default function AdminPage() {
             type="button"
             onClick={() => setActiveTab("pengaturan")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+              "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
               activeTab === "pengaturan"
-                ? "bg-sky-600 text-white shadow-xs font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                ? "bg-sky-600 text-white shadow-xs font-bold border border-sky-600"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted bg-muted/40 border border-border/70 font-medium"
             )}
           >
-            <Settings className="h-3.5 w-3.5" />
-            <span>Pengaturan</span>
+            <Settings className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Pengaturan</span>
           </button>
 
           {/* TAB: TIM ADMIN (KHUSUS SUPER ADMIN) */}
@@ -2619,14 +2595,14 @@ export default function AdminPage() {
               type="button"
               onClick={() => { setActiveTab("tim-admin"); setSearchTerm("") }}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer",
+                "col-span-2 sm:col-span-4 lg:col-span-1 flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-xl transition-all truncate cursor-pointer whitespace-nowrap shadow-xs",
                 activeTab === "tim-admin"
-                  ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-600 text-white shadow-xs font-bold"
-                  : "text-purple-600 dark:text-purple-400 hover:text-purple-700 hover:bg-purple-500/10 font-semibold border border-purple-200/60 dark:border-purple-800/60"
+                  ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-600 text-white shadow-xs font-bold border border-purple-500/60"
+                  : "text-purple-600 dark:text-purple-400 hover:text-purple-700 hover:bg-purple-500/10 font-semibold border border-purple-300/60 dark:border-purple-800/60 bg-purple-500/5"
               )}
             >
-              <Crown className="h-3.5 w-3.5" />
-              <span>Kelola Tim Admin ({adminTeamMembers.length})</span>
+              <Crown className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Kelola Tim Admin ({adminTeamMembers.length})</span>
             </button>
           )}
         </div>
@@ -3615,7 +3591,7 @@ export default function AdminPage() {
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
                             {isSuperAdmin && !isSelf && !isTargetSuperAdmin && (
                               <Button
                                 size="sm"
@@ -3624,7 +3600,7 @@ export default function AdminPage() {
                                   setRoleModalUser(u)
                                   setSelectedNewRole(u.role)
                                 }}
-                                className="h-7 px-2 text-[10px] rounded-lg gap-1 border-purple-300 text-purple-700 dark:text-purple-300 hover:bg-purple-50 cursor-pointer"
+                                className="h-7 px-2 text-[10px] rounded-lg gap-1 border-purple-300 text-purple-700 dark:text-purple-300 hover:bg-purple-50 cursor-pointer shrink-0"
                               >
                                 <Shield className="h-3 w-3" />
                                 <span>Peran</span>
@@ -3636,12 +3612,12 @@ export default function AdminPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleDeleteUser(u)}
-                                className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             ) : (
-                              <span className="text-[10px] text-muted-foreground/60 italic px-1">
+                              <span className="text-[10px] text-muted-foreground/60 italic px-1 shrink-0">
                                 {isSelf ? "Akun Anda" : isTargetSuperAdmin ? "Dilindungi" : "Super Admin"}
                               </span>
                             )}
@@ -4698,14 +4674,15 @@ export default function AdminPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1 border-t border-border/60 text-xs">
-                          <div>
+                        <div className="space-y-2.5 pt-2.5 border-t border-border/60 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-medium text-muted-foreground">Status Akun:</span>
                             {isSelf ? (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600">
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600">
                                 Sesi Aktif
                               </span>
                             ) : isTargetSuperAdmin ? (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold border border-purple-500/30 bg-purple-500/10 text-purple-600">
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-purple-500/30 bg-purple-500/10 text-purple-600">
                                 Dilindungi
                               </span>
                             ) : (
@@ -4713,7 +4690,7 @@ export default function AdminPage() {
                                 type="button"
                                 onClick={() => handleToggleUserActive(u)}
                                 className={cn(
-                                  "px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer",
+                                  "px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer",
                                   u.isActive ? "bg-emerald-600 text-white border-transparent" : "bg-neutral-600 text-white border-transparent"
                                 )}
                               >
@@ -4722,7 +4699,7 @@ export default function AdminPage() {
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap pt-0.5">
                             {!isSelf && !isTargetSuperAdmin && (
                               <Button
                                 size="sm"
@@ -4731,7 +4708,7 @@ export default function AdminPage() {
                                   setRoleModalUser(u)
                                   setSelectedNewRole(u.role)
                                 }}
-                                className="h-7 px-2 text-[10px] rounded-lg gap-1 border-purple-300 text-purple-700 dark:text-purple-300 hover:bg-purple-50 cursor-pointer"
+                                className="h-7.5 px-2.5 text-[11px] rounded-lg gap-1 border-purple-300 text-purple-700 dark:text-purple-300 hover:bg-purple-50 cursor-pointer shrink-0"
                               >
                                 <Shield className="h-3 w-3" />
                                 <span>Peran</span>
@@ -4747,7 +4724,7 @@ export default function AdminPage() {
                                 setShowResetPassword(false)
                                 setResetPasswordModalUser(u)
                               }}
-                              className="h-7 px-2 text-[10px] rounded-lg gap-1 border-sky-300 text-sky-700 dark:text-sky-300 hover:bg-sky-50 cursor-pointer"
+                              className="h-7.5 px-2.5 text-[11px] rounded-lg gap-1 border-sky-300 text-sky-700 dark:text-sky-300 hover:bg-sky-50 cursor-pointer shrink-0"
                             >
                               <KeyRound className="h-3 w-3" />
                               <span>Reset Sandi</span>
@@ -4764,7 +4741,7 @@ export default function AdminPage() {
                                   setTransferAgreed(false)
                                   setTransferOwnerModalUser(u)
                                 }}
-                                className="h-7 px-2 text-[10px] rounded-lg gap-1 border-amber-400 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer font-bold shadow-2xs"
+                                className="h-7.5 px-2.5 text-[11px] rounded-lg gap-1 border-amber-400 text-amber-800 dark:text-amber-300 hover:bg-amber-500/10 cursor-pointer font-bold shadow-2xs shrink-0"
                                 title="Transfer Kepemilikan Super Administrator (Owner)"
                               >
                                 <Crown className="h-3 w-3 text-amber-500" />
@@ -4777,7 +4754,8 @@ export default function AdminPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleDeleteUser(u)}
-                                className="h-7 w-7 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                className="h-7.5 w-7.5 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0"
+                                title="Hapus Administrator"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
@@ -4799,11 +4777,11 @@ export default function AdminPage() {
         <Dialog open={isBookModalOpen} onOpenChange={setIsBookModalOpen}>
           <DialogContent showCloseButton={false} className="w-full sm:max-w-4xl lg:max-w-5xl xl:max-w-5xl max-h-[92vh] overflow-y-auto p-5 sm:p-7 rounded-3xl border-border bg-card shadow-2xl">
             {/* Header */}
-            <DialogHeader className="space-y-3 pb-4 border-b border-border/60">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="space-y-1">
+            <DialogHeader className="relative space-y-3.5 pb-4 border-b border-border/60">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3.5">
+                <div className="space-y-1 pr-12 lg:pr-0">
                   <DialogTitle className="font-heading text-lg sm:text-xl font-bold text-foreground flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-primary" />
+                    <BookOpen className="w-5 h-5 text-primary shrink-0" />
                     <span>{editingBookId ? "Edit Informasi Buku Digital" : "Tambah Buku Baru ke Basis Data"}</span>
                   </DialogTitle>
                   <DialogDescription className="text-xs text-muted-foreground">
@@ -4811,48 +4789,27 @@ export default function AdminPage() {
                   </DialogDescription>
                 </div>
 
-                {/* Right Controls: Auto-Skip Toggle, Tab Switcher & Symmetric Close Button */}
-                <div className="flex items-center gap-2 sm:gap-2.5 self-start sm:self-auto shrink-0 flex-wrap">
-                  {/* Auto-Skip Duplicate Toggle Button */}
-                  <button
-                    type="button"
-                    onClick={() => toggleAutoSkipDuplicates(!autoSkipDuplicates)}
-                    title={
-                      autoSkipDuplicates
-                        ? "Fitur Auto-Skip Aktif: Mencegah buku duplikat masuk ke katalog"
-                        : "Fitur Auto-Skip Nonaktif: Semua buku akan diproses tanpa melewati duplikat"
-                    }
-                    className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-semibold border transition-all duration-200 cursor-pointer shadow-xs",
-                      autoSkipDuplicates
-                        ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                        : "bg-muted/60 hover:bg-muted text-muted-foreground border-border/80"
-                    )}
-                  >
-                    <ShieldCheck className={cn("w-3.5 h-3.5", autoSkipDuplicates ? "text-emerald-500" : "text-muted-foreground")} />
-                    <span>Auto-Skip:</span>
-                    <span className="font-bold">{autoSkipDuplicates ? "ON" : "OFF"}</span>
-                  </button>
-
-                  {/* Tab Switcher: Auto Write vs Manual Write */}
-                  <div className="inline-flex items-center p-1 bg-muted/60 rounded-2xl border border-border/80 shadow-inner">
+                {/* Right Controls: Tab Switcher & Auto-Skip (Symmetrical, Equal Height, Zero Wrap) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center gap-2 w-full lg:w-auto">
+                  {/* Tab Switcher: Auto Write vs Manual Write (Equal 50-50, Symmetrical) */}
+                  <div className="grid grid-cols-2 p-1 bg-muted/60 rounded-xl border border-border/80 shadow-inner w-full sm:w-auto h-9 items-center">
                     <button
                       type="button"
                       onClick={() => setBookModalTab("auto")}
                       className={cn(
-                        "flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer",
+                        "flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap",
                         bookModalTab === "auto"
-                          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                          ? "bg-primary text-primary-foreground shadow-xs"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
                       )}
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
+                      <Sparkles className="w-3.5 h-3.5 shrink-0" />
                       <span>Auto Write</span>
                       <span
                         className={cn(
-                          "text-[9px] font-bold px-1.5 py-0.5 rounded-full transition-colors leading-none tracking-wide",
+                          "text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none tracking-wide shrink-0",
                           bookModalTab === "auto"
-                            ? "bg-white/25 text-white border border-white/40 shadow-xs"
+                            ? "bg-white/25 text-white border border-white/40"
                             : "bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30"
                         )}
                       >
@@ -4864,28 +4821,49 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => setBookModalTab("manual")}
                       className={cn(
-                        "flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer",
+                        "flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap",
                         bookModalTab === "manual"
-                          ? "bg-primary text-primary-foreground shadow-sm shadow-primary/25"
+                          ? "bg-primary text-primary-foreground shadow-xs"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
                       )}
                     >
-                      <PenTool className="w-3.5 h-3.5" />
+                      <PenTool className="w-3.5 h-3.5 shrink-0" />
                       <span>Manual Write</span>
                     </button>
                   </div>
 
-                  {/* Perfectly Symmetrical Close Button */}
+                  {/* Auto-Skip Duplicate Toggle Button */}
                   <button
                     type="button"
-                    onClick={() => setIsBookModalOpen(false)}
-                    aria-label="Tutup modal"
-                    className="w-9 h-9 flex items-center justify-center rounded-2xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 cursor-pointer shrink-0 border border-border/80 hover:border-border shadow-inner"
+                    onClick={() => toggleAutoSkipDuplicates(!autoSkipDuplicates)}
+                    title={
+                      autoSkipDuplicates
+                        ? "Fitur Auto-Skip Aktif: Mencegah buku duplikat masuk ke katalog"
+                        : "Fitur Auto-Skip Nonaktif: Semua buku akan diproses tanpa melewati duplikat"
+                    }
+                    className={cn(
+                      "flex items-center justify-center gap-1.5 h-9 px-3 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer shadow-xs whitespace-nowrap w-full sm:w-auto",
+                      autoSkipDuplicates
+                        ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        : "bg-muted/60 hover:bg-muted text-muted-foreground border-border/80"
+                    )}
                   >
-                    <X className="w-4 h-4" />
+                    <ShieldCheck className={cn("w-3.5 h-3.5 shrink-0", autoSkipDuplicates ? "text-emerald-500" : "text-muted-foreground")} />
+                    <span>Auto-Skip:</span>
+                    <span className="font-bold">{autoSkipDuplicates ? "ON" : "OFF"}</span>
                   </button>
                 </div>
               </div>
+
+              {/* Pinned Top-Right Close Button */}
+              <button
+                type="button"
+                onClick={() => setIsBookModalOpen(false)}
+                aria-label="Tutup modal"
+                className="absolute top-0 right-0 w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-2xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-200 cursor-pointer shrink-0 border border-border/80 hover:border-border shadow-xs z-20"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </DialogHeader>
 
             {/* Hidden File Inputs */}
@@ -6702,9 +6680,9 @@ export default function AdminPage() {
         {/* ================================================================= */}
         <Dialog open={isAddAdminModalOpen} onOpenChange={setIsAddAdminModalOpen}>
           <DialogContent className="w-full sm:max-w-lg p-6 rounded-3xl border-border bg-card shadow-2xl overflow-y-auto max-h-[92vh]">
-            <DialogHeader className="space-y-1 pb-2 border-b border-border/60">
+            <DialogHeader className="space-y-1 pb-2 border-b border-border/60 pr-10 sm:pr-8">
               <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
-                <Crown className="h-5 w-5" />
+                <Crown className="h-5 w-5 shrink-0" />
                 <DialogTitle className="font-heading text-base sm:text-lg font-bold text-foreground">
                   Tambah Akun Administrator Baru
                 </DialogTitle>
@@ -6861,7 +6839,7 @@ export default function AdminPage() {
           <DialogContent className="max-w-sm p-5 rounded-3xl border-border bg-card shadow-2xl">
             <DialogHeader className="space-y-1">
               <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400">
-                <KeyRound className="h-5 w-5" />
+                <KeyRound className="h-5 w-5 shrink-0" />
                 <DialogTitle className="font-heading text-base font-bold text-foreground">
                   Reset Kata Sandi Pengelola
                 </DialogTitle>

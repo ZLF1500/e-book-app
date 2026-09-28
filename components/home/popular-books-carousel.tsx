@@ -94,7 +94,7 @@ export function PopularBooksCarousel() {
     [
       Autoplay({
         delay: 3500,
-        stopOnInteraction: false,
+        stopOnInteraction: true,
         stopOnMouseEnter: true,
       }),
     ]
@@ -147,6 +147,8 @@ export function PopularBooksCarousel() {
                 <img
                   src={featuredBannerBook.coverUrl}
                   alt={featuredBannerBook.title}
+                  decoding="async"
+                  fetchPriority="high"
                   className="h-44 w-32 rounded-xl object-cover shadow-2xl ring-2 ring-white/20 group-hover:scale-105 transition-transform duration-300"
                 />
               </div>
@@ -167,7 +169,7 @@ export function PopularBooksCarousel() {
           </div>
 
           {/* Right Carousel of Book Cards (Span 9) */}
-          <div className="lg:col-span-9 overflow-hidden" ref={emblaRef}>
+          <div className="lg:col-span-9 overflow-hidden touch-pan-y" ref={emblaRef}>
             <div className="flex -ml-4">
               {popularBooks.map((book) => {
                 const isBookmarked = bookmarkedIds.includes(book.id)
@@ -177,7 +179,7 @@ export function PopularBooksCarousel() {
                     key={book.id}
                     className="flex-[0_0_50%] sm:flex-[0_0_33.33%] md:flex-[0_0_25%] pl-4 min-w-0"
                   >
-                    <div className="group relative flex flex-col justify-between h-full rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 shadow-2xs hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all duration-300">
+                    <div className="group relative flex flex-col justify-between h-full rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 shadow-2xs hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-[border-color,box-shadow] duration-200">
                       {/* Cover Image Container */}
                       <div className="relative aspect-3/4 w-full overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900 mb-3 shadow-2xs">
                         <Link
@@ -190,7 +192,8 @@ export function PopularBooksCarousel() {
                             src={book.coverUrl}
                             alt={book.title}
                             loading="lazy"
-                            className="relative z-1 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            decoding="async"
+                            className="relative z-1 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none"
                           />
 
                           {/* 3D Realistic Book Spine Effect */}
@@ -199,7 +202,7 @@ export function PopularBooksCarousel() {
                           <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-black/10 dark:ring-white/10 z-10" />
 
                           {/* 🌐 ID badge (From video Frame 1) */}
-                          <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md bg-white/90 dark:bg-neutral-900/90 backdrop-blur-xs px-1.5 py-0.5 shadow-xs text-[10px] font-bold text-sky-600">
+                          <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md bg-white/95 dark:bg-neutral-900/95 sm:backdrop-blur-xs px-1.5 py-0.5 shadow-xs text-[10px] font-bold text-sky-600">
                             <Globe className="h-3 w-3" />
                             <span>ID</span>
                           </div>

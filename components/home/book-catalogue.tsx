@@ -1171,74 +1171,100 @@ export function BookCatalogue() {
         )}
 
         {/* TOOLBAR: SIDEBAR TOGGLE, VIEW TOGGLE, SELECTION, SORT ORDER */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-card border border-border shadow-2xs mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2 rounded-2xl bg-card border border-border shadow-2xs mb-6">
           
-          {/* SISI KIRI: DESKTOP SIDEBAR TOGGLE, MOBILE SHEET TRIGGER & GRID/LIST TOGGLE */}
-          {/* SISI KIRI: DESKTOP SIDEBAR TOGGLE, MOBILE SHEET TRIGGER & GRID/LIST TOGGLE */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Desktop Sidebar Toggle */}
-            <Button
-              variant="outline"
-              onClick={() => setIsSidebarOpen((prev) => !prev)}
-              className={cn(
-                "hidden lg:inline-flex items-center gap-2 h-9 px-3 rounded-xl border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer",
-                isSidebarOpen && "border-sky-500 text-sky-600 bg-sky-50/60 dark:bg-sky-950/40"
-              )}
-              title={isSidebarOpen ? "Sembunyikan Sidebar Filter" : "Tampilkan Sidebar Filter"}
-            >
-              {isSidebarOpen ? (
-                <PanelLeftClose className="h-4 w-4 text-sky-600" />
-              ) : (
-                <PanelLeft className="h-4 w-4" />
-              )}
-              <span>{isSidebarOpen ? "Tutup Filter" : "Buka Filter"}</span>
-              {isAnyFilterActive && (
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-              )}
-            </Button>
+          {/* BARIS 1 (MOBILE) / SISI KIRI (DESKTOP): SIDEBAR TOGGLE, MOBILE FILTER, VIEW TOGGLE & (DI HP) ARAH SORT */}
+          <div className="flex items-center justify-between sm:justify-start gap-1.5 w-full sm:w-auto">
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Desktop Sidebar Toggle */}
+              <Button
+                variant="outline"
+                onClick={() => setIsSidebarOpen((prev) => !prev)}
+                className={cn(
+                  "hidden lg:inline-flex items-center gap-2 h-9 px-3 rounded-xl border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer",
+                  isSidebarOpen && "border-sky-500 text-sky-600 bg-sky-50/60 dark:bg-sky-950/40"
+                )}
+                title={isSidebarOpen ? "Sembunyikan Sidebar Filter" : "Tampilkan Sidebar Filter"}
+              >
+                {isSidebarOpen ? (
+                  <PanelLeftClose className="h-4 w-4 text-sky-600" />
+                ) : (
+                  <PanelLeft className="h-4 w-4" />
+                )}
+                <span>{isSidebarOpen ? "Tutup Filter" : "Buka Filter"}</span>
+                {isAnyFilterActive && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                )}
+              </Button>
 
-            {/* Mobile Sheet Trigger */}
-            <Button
-              variant="outline"
-              onClick={() => setIsMobileDrawerOpen(true)}
-              className={cn(
-                "inline-flex lg:hidden items-center gap-1.5 h-9 px-3 rounded-xl border-border hover:bg-muted text-xs font-semibold text-foreground relative cursor-pointer",
-                isAnyFilterActive && "border-sky-500 text-sky-600 bg-sky-50/60 dark:bg-sky-950/40"
-              )}
-              title="Buka Filter Buku"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              <span>Filter</span>
-              {isAnyFilterActive && (
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
-              )}
-            </Button>
+              {/* Mobile Sheet Trigger */}
+              <Button
+                variant="outline"
+                onClick={() => setIsMobileDrawerOpen(true)}
+                className={cn(
+                  "inline-flex lg:hidden items-center gap-1.5 h-9 px-3 rounded-xl border-border hover:bg-muted text-xs font-semibold text-foreground relative cursor-pointer",
+                  isAnyFilterActive && "border-sky-500 text-sky-600 bg-sky-50/60 dark:bg-sky-950/40"
+                )}
+                title="Buka Filter Buku"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span>Filter</span>
+                {isAnyFilterActive && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                )}
+              </Button>
 
-            {/* Grid/List Toggle */}
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-              className="h-9 w-9 rounded-xl border-border hover:bg-muted text-foreground cursor-pointer"
-              title={viewMode === "grid" ? "Ganti ke Tampilan Baris (List)" : "Ganti ke Tampilan Grid"}
-            >
-              {viewMode === "grid" ? (
-                <List className="h-4 w-4" />
-              ) : (
-                <LayoutGrid className="h-4 w-4" />
-              )}
-            </Button>
+              {/* Grid/List Toggle */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                className="h-9 w-9 rounded-xl border-border hover:bg-muted text-foreground cursor-pointer"
+                title={viewMode === "grid" ? "Ganti ke Tampilan Baris (List)" : "Ganti ke Tampilan Grid"}
+              >
+                {viewMode === "grid" ? (
+                  <List className="h-4 w-4" />
+                ) : (
+                  <LayoutGrid className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+
+            {/* Arah Urutan Toggle khusus Mobile (berdampingan di baris atas bersama Filter & Grid) */}
+            {selection !== "bookmark" && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+                className="sm:hidden h-9 w-9 shrink-0 rounded-xl border-border hover:bg-muted text-foreground cursor-pointer"
+                title={
+                  selection === "az"
+                    ? sortOrder === "asc"
+                      ? "Sedang A ke Z (Klik untuk ubah ke Z ke A)"
+                      : "Sedang Z ke A (Klik untuk ubah ke A ke Z)"
+                    : sortOrder === "desc"
+                    ? "Urutan Menurun (Tertinggi / Terbaru)"
+                    : "Urutan Menaik (Terendah / Terlama)"
+                }
+              >
+                {sortOrder === "desc" ? (
+                  <ArrowDown className="h-4 w-4 text-sky-600" />
+                ) : (
+                  <ArrowUp className="h-4 w-4 text-sky-600" />
+                )}
+              </Button>
+            )}
           </div>
 
-          {/* SISI KANAN: SELECTION BUTTON (SEGMENTED CONTROL) & ARAH SORT */}
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end overflow-hidden">
-            {/* Selection Button (Segmented Control) */}
-            <div className="inline-flex rounded-xl bg-muted p-1 text-xs font-medium text-muted-foreground overflow-x-auto no-scrollbar max-w-[calc(100%-44px)] sm:max-w-none">
+          {/* SISI KANAN / BARIS 2 (HP): SELECTION BUTTON (SEGMENTED CONTROL) & (DESKTOP) ARAH SORT */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            {/* Selection Button (Segmented Control): Full width grid di mobile, inline-flex di desktop */}
+            <div className="w-full sm:w-auto grid grid-cols-5 sm:inline-flex rounded-xl bg-muted p-1 text-xs font-medium text-muted-foreground text-center">
               <button
                 type="button"
                 onClick={() => handleSelectionChange("terbaru")}
                 className={cn(
-                  "px-2.5 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer",
+                  "px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer text-center",
                   selection === "terbaru"
                     ? "bg-background text-foreground font-semibold shadow-xs"
                     : "hover:text-foreground"
@@ -1250,7 +1276,7 @@ export function BookCatalogue() {
                 type="button"
                 onClick={() => handleSelectionChange("populer")}
                 className={cn(
-                  "px-2.5 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer",
+                  "px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer text-center",
                   selection === "populer"
                     ? "bg-background text-foreground font-semibold shadow-xs"
                     : "hover:text-foreground"
@@ -1262,7 +1288,7 @@ export function BookCatalogue() {
                 type="button"
                 onClick={() => handleSelectionChange("rating")}
                 className={cn(
-                  "px-2.5 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer",
+                  "px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer text-center",
                   selection === "rating"
                     ? "bg-background text-foreground font-semibold shadow-xs"
                     : "hover:text-foreground"
@@ -1274,7 +1300,7 @@ export function BookCatalogue() {
                 type="button"
                 onClick={() => handleSelectionChange("az")}
                 className={cn(
-                  "px-2.5 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer font-medium",
+                  "px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer font-medium text-center",
                   selection === "az"
                     ? "bg-background text-foreground font-semibold shadow-xs"
                     : "hover:text-foreground"
@@ -1287,24 +1313,25 @@ export function BookCatalogue() {
                 type="button"
                 onClick={() => handleSelectionChange("bookmark")}
                 className={cn(
-                  "px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap cursor-pointer",
+                  "px-2 sm:px-3 py-1.5 rounded-lg transition-all flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer text-center",
                   selection === "bookmark"
                     ? "bg-background text-foreground font-semibold shadow-xs"
                     : "hover:text-foreground"
                 )}
               >
-                <Bookmark className="h-3 w-3" />
-                <span>Bookmark</span>
+                <Bookmark className="h-3 w-3 shrink-0" />
+                <span className="hidden xs:inline sm:inline">Bookmark</span>
+                <span className="xs:hidden sm:hidden">Simpan</span>
               </button>
             </div>
 
-            {/* Arah Urutan Toggle (Icon-only asc/desc) */}
+            {/* Arah Urutan Toggle (Desktop Only) */}
             {selection !== "bookmark" && (
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
-                className="h-9 w-9 shrink-0 rounded-xl border-border hover:bg-muted text-foreground cursor-pointer"
+                className="hidden sm:flex h-9 w-9 shrink-0 rounded-xl border-border hover:bg-muted text-foreground cursor-pointer"
                 title={
                   selection === "az"
                     ? sortOrder === "asc"
@@ -1402,7 +1429,7 @@ export function BookCatalogue() {
                       return (
                         <div
                           key={book.id}
-                          className="group relative flex flex-col justify-between rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-2.5 sm:p-3 shadow-2xs hover:shadow-lg hover:border-sky-300 dark:hover:border-sky-700 transition-all duration-300"
+                          className="group relative flex flex-col justify-between rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-2.5 sm:p-3 shadow-2xs hover:shadow-lg hover:border-sky-300 dark:hover:border-sky-700 transition-[border-color,box-shadow] duration-200 content-visibility-auto"
                         >
                           <div className="relative aspect-3/4 w-full overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-900 mb-2.5 sm:mb-3 shadow-inner group-hover:shadow-lg transition-shadow">
                             <Link
@@ -1415,7 +1442,8 @@ export function BookCatalogue() {
                                 src={book.coverUrl}
                                 alt={book.title}
                                 loading="lazy"
-                                className="relative z-1 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                decoding="async"
+                                className="relative z-1 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none"
                               />
 
                               {/* 3D Realistic Book Spine Effect */}
@@ -1433,18 +1461,18 @@ export function BookCatalogue() {
                               )}
 
                               {/* 🌐 ID/EN badge & Akses Instan */}
-                              <div className="absolute top-2 left-2 z-10 flex items-center gap-1 flex-wrap">
-                                <div className="flex items-center gap-1 rounded-md bg-white/90 dark:bg-neutral-900/90 backdrop-blur-xs px-1 sm:px-1.5 py-0.5 shadow-xs text-[9px] sm:text-[10px] font-bold text-sky-600">
+                              <div className="absolute top-2 left-2 z-10 flex items-center gap-1 flex-wrap max-w-[calc(100%-2.25rem)]">
+                                <div className="flex items-center gap-1 rounded-md bg-white/95 dark:bg-neutral-900/95 sm:backdrop-blur-xs px-1 sm:px-1.5 py-0.5 shadow-xs text-[9px] sm:text-[10px] font-bold text-sky-600">
                                   <span className="text-[10px] sm:text-[11px]">🌐</span>
                                   <span>{book.language.toLowerCase().includes("inggris") || book.language.toLowerCase().includes("eng") ? "EN" : "ID"}</span>
                                 </div>
                                 {isAvailable ? (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-600/95 backdrop-blur-xs text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 shadow-xs">
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-600/95 sm:backdrop-blur-xs text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 shadow-xs">
                                     <span className="h-1 w-1 rounded-full bg-white" />
                                     Akses Instan
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-600/95 backdrop-blur-xs text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 shadow-xs">
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-600/95 sm:backdrop-blur-xs text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 shadow-xs">
                                     Sedang Revisi
                                   </span>
                                 )}
@@ -1534,7 +1562,7 @@ export function BookCatalogue() {
                       return (
                         <div
                           key={book.id}
-                          className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-2xl border border-border/80 bg-card hover:border-sky-300 dark:hover:border-sky-700 shadow-2xs hover:shadow-md transition-all"
+                          className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-3.5 rounded-2xl border border-border/80 bg-card hover:border-sky-300 dark:hover:border-sky-700 shadow-2xs hover:shadow-md transition-[border-color,box-shadow] duration-200 content-visibility-auto"
                         >
                           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                             <Link
@@ -1547,7 +1575,8 @@ export function BookCatalogue() {
                                 src={book.coverUrl}
                                 alt={book.title}
                                 loading="lazy"
-                                className="relative z-1 h-16 w-12 sm:h-20 sm:w-14 rounded-lg object-cover ring-1 ring-border group-hover:scale-105 transition-transform"
+                                decoding="async"
+                                className="relative z-1 h-16 w-12 sm:h-20 sm:w-14 rounded-lg object-cover ring-1 ring-border group-hover:scale-105 transition-transform pointer-events-none"
                               />
                               <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-black/35 to-transparent z-10" />
                               <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-inset ring-black/10 dark:ring-white/10 z-10" />

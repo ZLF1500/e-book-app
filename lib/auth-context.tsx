@@ -50,6 +50,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const searchParams = new URLSearchParams(window.location.search)
         if (searchParams.get("google_success") === "1") {
           const authData = searchParams.get("auth_data")
+          const sessionHandoff = searchParams.get("session_handoff")
+          if (sessionHandoff) {
+            fetch("/api/auth/session-handoff", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: sessionHandoff }),
+            }).catch(() => {})
+          }
           if (authData) {
             try {
               const decodedJson = atob(authData)

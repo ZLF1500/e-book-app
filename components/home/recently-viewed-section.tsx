@@ -33,12 +33,21 @@ export function RecentlyViewedSection() {
   const scrollLeftPos = React.useRef(0)
   const isDragging = React.useRef(false)
 
+  // Scroll state & rAF throttle
+  const rafId = React.useRef<number | null>(null)
+
   const updateScrollState = React.useCallback(() => {
-    const el = scrollContainerRef.current
-    if (!el) return
-    const { scrollLeft, scrollWidth, clientWidth } = el
-    setCanScrollLeft(scrollLeft > 4)
-    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6)
+    if (rafId.current !== null) return
+    rafId.current = requestAnimationFrame(() => {
+      rafId.current = null
+      const el = scrollContainerRef.current
+      if (!el) return
+      const { scrollLeft, scrollWidth, clientWidth } = el
+      const nextLeft = scrollLeft > 4
+      const nextRight = scrollLeft + clientWidth < scrollWidth - 6
+      setCanScrollLeft((prev) => (prev !== nextLeft ? nextLeft : prev))
+      setCanScrollRight((prev) => (prev !== nextRight ? nextRight : prev))
+    })
   }, [])
 
   const scroll = (direction: "left" | "right") => {
@@ -52,10 +61,14 @@ export function RecentlyViewedSection() {
     setTimeout(updateScrollState, 350)
   }
 
-  // Wheel listener for horizontal scrolling with standard mouse wheel
+  // Wheel listener for horizontal scrolling with standard mouse wheel (desktop only)
   React.useEffect(() => {
     const el = scrollContainerRef.current
     if (!el) return
+    // Only bind wheel listener on devices with fine pointer (mouse/trackpad), never on touchscreens
+    if (typeof window !== "undefined" && !window.matchMedia("(pointer: fine)").matches) {
+      return
+    }
 
     const onWheel = (e: WheelEvent) => {
       if (el.scrollWidth <= el.clientWidth) return
@@ -91,6 +104,10 @@ export function RecentlyViewedSection() {
     const timer = setTimeout(updateScrollState, 150)
 
     return () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current)
+        rafId.current = null
+      }
       el.removeEventListener("scroll", handleScroll)
       window.removeEventListener("resize", handleScroll)
       clearTimeout(timer)
@@ -300,7 +317,7 @@ export function RecentlyViewedSection() {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              className="flex items-stretch gap-4 overflow-x-auto no-scrollbar py-1 scroll-smooth cursor-grab active:cursor-grabbing select-none"
+              className="flex items-stretch gap-4 overflow-x-auto no-scrollbar py-1 scroll-smooth cursor-grab active:cursor-grabbing select-none touch-pan-y"
             >
               {recentBooks.map((book) => {
                 const isBookmarked = bookmarkedIds.includes(String(book.id))
@@ -311,7 +328,7 @@ export function RecentlyViewedSection() {
                 return (
                   <div
                     key={book.id}
-                    className="group flex flex-col justify-between rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 w-[170px] shrink-0 shadow-xs hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-all duration-200"
+                    className="group flex flex-col justify-between rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 p-3 w-[170px] shrink-0 shadow-xs hover:shadow-md hover:border-sky-300 dark:hover:border-sky-700 transition-[border-color,box-shadow] duration-200"
                   >
                     {/* Cover image with badge & bookmark button */}
                     <div className="relative aspect-3/4 w-full rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-900 mb-3 shadow-2xs">
@@ -327,12 +344,13 @@ export function RecentlyViewedSection() {
                           src={book.coverUrl || "/placeholder.svg"}
                           alt={book.title}
                           loading="lazy"
+                          decoding="async"
                           draggable={false}
                           className="relative z-1 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                         />
 
                         {/* 🌐 ID/EN badge */}
-                        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md bg-white/90 dark:bg-neutral-900/90 backdrop-blur-xs px-1.5 py-0.5 shadow-xs text-[10px] font-bold text-sky-600">
+                        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 rounded-md bg-white/95 dark:bg-neutral-900/95 sm:backdrop-blur-xs px-1.5 py-0.5 shadow-xs text-[10px] font-bold text-sky-600">
                           <Globe className="h-3 w-3" />
                           <span>{isEnglish ? "EN" : "ID"}</span>
                         </div>

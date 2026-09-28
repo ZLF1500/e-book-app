@@ -1,19 +1,50 @@
 import { NextResponse } from "next/server"
+import { getAppBaseUrl, getSafeRedirectUrl } from "@/lib/url-helper"
 
 export async function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  const redirectUri = `${appUrl}/api/auth/google/callback`
+  const baseUrl = getAppBaseUrl(request)
+  const isHttps = baseUrl.startsWith("https://")
 
-  // If Google OAuth credentials are not configured yet in .env
+  const { searchParams } = new URL(request.url)
+  const returnTo = searchParams.get("redirect") || "/"
+
+  // Deteksi apakah sedang diakses via quick tunnel publik dengan subdomain acak
+  const isRandomQuickTunnel =
+    baseUrl.includes("trycloudflare.com") ||
+    baseUrl.includes("loca.lt") ||
+    baseUrl.includes("ngrok")
+
+  // Redirect URI yang didaftarkan di Google Cloud Console
+  // 1. Jika GOOGLE_REDIRECT_URI diatur di .env -> gunakan itu.
+  // 2. Jika diakses via quick tunnel acak (trycloudflare.com) -> gunakan "http://localhost:3000/api/auth/google/callback"
+  //    agar tidak terjadi "Error 400: redirect_uri_mismatch" di Google Console, karena domain trycloudflare
+  //    selalu berubah-ubah. Origin tunnel asli tetap disimpan di dalam parameter state dan akan otomatis
+  //    di-redirect balik ke tunnel setelah login berhasil!
+  // 3. Jika domain biasa/tetap -> gunakan `${baseUrl}/api/auth/google/callback`.
+  const defaultRedirectUri = isRandomQuickTunnel
+    ? "http://localhost:3000/api/auth/google/callback"
+    : `${baseUrl}/api/auth/google/callback`
+
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || defaultRedirectUri
+
+  // Jika Google OAuth credentials belum dikonfigurasi di .env
   if (!clientId || clientId.trim() === "" || clientId.includes("your-")) {
-    return NextResponse.redirect(new URL("/masuk?error=google_not_configured", request.url))
+    return NextResponse.redirect(
+      getSafeRedirectUrl("/masuk?error=google_not_configured", request, baseUrl)
+    )
   }
 
-  // Generate random CSRF state
-  const state = Math.random().toString(36).substring(2, 15)
+  // State terstruktur: menyimpan nonce CSRF, origin request asli (misal URL tunnel), target halaman, dan redirectUri
+  const statePayload = {
+    nonce: Math.random().toString(36).substring(2, 15),
+    origin: baseUrl,
+    returnTo: returnTo.startsWith("/") ? returnTo : "/",
+    redirectUri,
+  }
+  const state = Buffer.from(JSON.stringify(statePayload)).toString("base64url")
 
-  // Construct Google OAuth 2.0 Authorization URL
+  // Buat Google OAuth 2.0 Authorization URL
   const googleAuthUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth")
   googleAuthUrl.searchParams.set("client_id", clientId)
   googleAuthUrl.searchParams.set("redirect_uri", redirectUri)
@@ -24,13 +55,29 @@ export async function GET(request: Request) {
   googleAuthUrl.searchParams.set("state", state)
 
   const response = NextResponse.redirect(googleAuthUrl.toString())
-  
-  // Set state cookie for CSRF verification
+
+  // Set cookies untuk verifikasi CSRF dan pemulihan sesi callback
   response.cookies.set("rsjd_oauth_state", state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" || isHttps,
     sameSite: "lax",
-    maxAge: 60 * 10, // 10 minutes
+    maxAge: 60 * 10, // 10 menit
+    path: "/",
+  })
+
+  response.cookies.set("rsjd_oauth_origin", baseUrl, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production" || isHttps,
+    sameSite: "lax",
+    maxAge: 60 * 10,
+    path: "/",
+  })
+
+  response.cookies.set("rsjd_oauth_redirect_uri", redirectUri, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production" || isHttps,
+    sameSite: "lax",
+    maxAge: 60 * 10,
     path: "/",
   })
 

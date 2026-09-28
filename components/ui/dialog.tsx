@@ -39,7 +39,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/40 duration-100 backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/50 duration-100 sm:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -61,7 +61,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-1.25rem)] sm:max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 sm:gap-6 rounded-2xl sm:rounded-4xl bg-card border border-border p-4 sm:p-6 text-sm text-card-foreground shadow-2xl duration-100 outline-none overflow-hidden data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-1.25rem)] sm:max-w-md -translate-x-1/2 -translate-y-1/2 gap-4 sm:gap-6 rounded-2xl sm:rounded-4xl bg-card border border-border p-4 sm:p-6 text-sm text-card-foreground shadow-2xl overscroll-contain duration-100 outline-none overflow-hidden data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -71,7 +71,7 @@ function DialogContent({
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
               variant="ghost"
-              className="absolute top-4 right-4 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-150 cursor-pointer shadow-xs"
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-50 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-all duration-150 cursor-pointer shadow-xs"
               size="icon-sm"
             >
               <XIcon className="w-4 h-4" />
@@ -88,7 +88,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1.5", className)}
+      className={cn("flex flex-col gap-1.5 pr-8 sm:pr-9", className)}
       {...props}
     />
   )

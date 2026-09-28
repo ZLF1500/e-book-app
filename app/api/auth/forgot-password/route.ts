@@ -3,6 +3,7 @@ import { execute } from "@/lib/db"
 import { sendPasswordResetEmail } from "@/lib/email-service"
 import { verifyTurnstileToken } from "@/lib/turnstile"
 import { checkRateLimit } from "@/lib/rate-limit"
+import { getAppBaseUrl } from "@/lib/url-helper"
 
 export async function POST(request: Request) {
   try {
@@ -40,10 +41,7 @@ export async function POST(request: Request) {
     }
 
     const token = "magic-" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36)
-    const origin =
-      request.headers.get("origin") ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000"
+    const origin = getAppBaseUrl(request)
 
     const relativeLink = `/reset-password?token=${token}&email=${encodeURIComponent(cleanEmail)}`
     const fullResetUrl = `${origin}${relativeLink}`

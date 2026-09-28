@@ -632,46 +632,46 @@ function LoansContent() {
           </div>
         )}
 
-        {/* Segmented Tabs */}
-        <div className="inline-flex rounded-2xl bg-muted p-1 text-xs font-semibold text-muted-foreground mb-8">
+        {/* Segmented Tabs (Responsive: 3 columns on mobile, inline on desktop) */}
+        <div className="w-full grid grid-cols-3 sm:inline-flex sm:w-auto rounded-2xl bg-muted p-1 text-xs font-semibold text-muted-foreground mb-8">
           <button
             type="button"
             onClick={() => setActiveTab("aktif")}
             className={cn(
-              "px-4 py-2 rounded-xl transition-all flex items-center gap-2",
+              "px-2 sm:px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer text-center",
               activeTab === "aktif"
                 ? "bg-background text-foreground font-bold shadow-xs"
                 : "hover:text-foreground"
             )}
           >
-            <Clock className="h-3.5 w-3.5 text-sky-600" />
-            <span>Sedang Dipinjam ({activeLoans.length})</span>
+            <Clock className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+            <span><span className="sm:hidden">Dipinjam</span><span className="hidden sm:inline">Sedang Dipinjam</span> ({activeLoans.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("riwayat")}
             className={cn(
-              "px-4 py-2 rounded-xl transition-all flex items-center gap-2",
+              "px-2 sm:px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer text-center",
               activeTab === "riwayat"
                 ? "bg-background text-foreground font-bold shadow-xs"
                 : "hover:text-foreground"
             )}
           >
-            <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Riwayat Selesai ({pastLoans.length})</span>
+            <RotateCcw className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <span><span className="sm:hidden">Riwayat</span><span className="hidden sm:inline">Riwayat Selesai</span> ({pastLoans.length})</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("bookmark")}
             className={cn(
-              "px-4 py-2 rounded-xl transition-all flex items-center gap-2",
+              "px-2 sm:px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer text-center",
               activeTab === "bookmark"
                 ? "bg-background text-foreground font-bold shadow-xs"
                 : "hover:text-foreground"
             )}
           >
-            <Bookmark className="h-3.5 w-3.5 text-amber-500" />
-            <span>Bookmark Saya ({bookmarkedBooks.length})</span>
+            <Bookmark className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <span><span className="sm:hidden">Bookmark</span><span className="hidden sm:inline">Bookmark Saya</span> ({bookmarkedBooks.length})</span>
           </button>
         </div>
 
@@ -731,7 +731,9 @@ function LoansContent() {
                             <img
                               src={loan.coverUrl}
                               alt={loan.bookTitle}
-                              className="h-full w-full object-cover group-hover/cover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover group-hover/cover:scale-105 transition-transform duration-300 pointer-events-none"
                             />
                             <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-black/30 to-transparent z-10" />
                           </Link>
@@ -788,26 +790,26 @@ function LoansContent() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 shrink-0">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40 w-full sm:w-auto">
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => toggleExpand(`active_${loan.id}`)}
                             className={cn(
-                              "h-9 px-3 text-xs font-semibold gap-1.5 transition-all rounded-xl",
+                              "h-9 px-2.5 sm:px-3 text-xs font-semibold gap-1 sm:gap-1.5 transition-all rounded-xl shrink-0",
                               isExpanded
                                 ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-800"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                             )}
                             title="Tampilkan detail waktu peminjaman lengkap"
                           >
-                            <Clock className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
-                            <span>{isExpanded ? "Tutup Detail" : "Detail Waktu"}</span>
+                            <Clock className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                            <span>{isExpanded ? "Tutup" : "Detail"}<span className="hidden sm:inline">{isExpanded ? " Detail" : " Waktu"}</span></span>
                             {isExpanded ? (
-                              <ChevronUp className="h-3.5 w-3.5" />
+                              <ChevronUp className="h-3.5 w-3.5 shrink-0" />
                             ) : (
-                              <ChevronDown className="h-3.5 w-3.5" />
+                              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
                             )}
                           </Button>
 
@@ -816,7 +818,7 @@ function LoansContent() {
                             size="sm"
                             disabled={returningLoanId === loan.id}
                             onClick={() => setLoanToReturn(loan)}
-                            className="h-9 px-3 text-xs font-semibold rounded-xl border-border hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 transition-all cursor-pointer"
+                            className="h-9 px-2.5 sm:px-3 text-xs font-semibold rounded-xl border-border hover:border-rose-300 dark:hover:border-rose-900/60 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 transition-all cursor-pointer shrink-0"
                             title="Kembalikan buku lebih awal"
                           >
                             {returningLoanId === loan.id ? (
@@ -829,10 +831,10 @@ function LoansContent() {
                             )}
                           </Button>
 
-                          <Link href={`/baca/${loan.bookId}`}>
+                          <Link href={`/baca/${loan.bookId}`} className="shrink-0">
                             <Button
                               size="sm"
-                              className="h-9 px-3.5 text-xs font-semibold gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 shadow-xs"
+                              className="h-9 px-3 sm:px-3.5 text-xs font-semibold gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 shadow-xs"
                             >
                               <BookOpen className="h-3.5 w-3.5" />
                               <span>Lanjutkan Baca</span>
@@ -844,10 +846,10 @@ function LoansContent() {
                       {/* Detail Waktu Peminjaman Aktif (Expandable Drawer) */}
                       {isExpanded && (
                         <div className="border-t border-border/70 bg-muted/20 p-4 sm:p-5 space-y-3.5 animate-fade-in">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground pb-2.5 border-b border-border/50">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-muted-foreground pb-2.5 border-b border-border/50">
                             <span className="flex items-center gap-2 font-semibold text-foreground">
-                              <Calendar className="h-3.5 w-3.5 text-sky-600" />
-                              Rincian Waktu Sesi Peminjaman Aktif
+                              <Calendar className="h-3.5 w-3.5 text-sky-600 shrink-0" />
+                              <span>Rincian Waktu Sesi Peminjaman Aktif</span>
                             </span>
                             <span className="text-[11px] font-mono text-muted-foreground">
                               Zona Waktu: WITA (UTC+8)
@@ -954,7 +956,9 @@ function LoansContent() {
                             <img
                               src={loan.coverUrl}
                               alt={loan.bookTitle}
-                              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                             />
                             <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-black/30 to-transparent" />
                           </Link>
@@ -1013,30 +1017,30 @@ function LoansContent() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 shrink-0">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40 w-full sm:w-auto">
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => toggleExpand(String(loan.bookId))}
                             className={cn(
-                              "h-9 px-3 text-xs font-semibold gap-1.5 transition-all rounded-xl",
+                              "h-9 px-2.5 sm:px-3 text-xs font-semibold gap-1 sm:gap-1.5 transition-all rounded-xl shrink-0",
                               isExpanded
                                 ? "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/70 dark:text-sky-300 dark:border-sky-800"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                             )}
                             title="Tampilkan detail waktu peminjaman lengkap"
                           >
-                            <Clock className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
-                            <span>{isExpanded ? "Tutup Detail" : `Detail Waktu (${sessions.length})`}</span>
+                            <Clock className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                            <span>{isExpanded ? "Tutup" : "Detail"}<span className="hidden sm:inline">{isExpanded ? " Detail" : ` Waktu (${sessions.length})`}</span></span>
                             {isExpanded ? (
-                              <ChevronUp className="h-3.5 w-3.5" />
+                              <ChevronUp className="h-3.5 w-3.5 shrink-0" />
                             ) : (
-                              <ChevronDown className="h-3.5 w-3.5" />
+                              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
                             )}
                           </Button>
 
-                          <Link href={`/buku/${targetSlug}`}>
+                          <Link href={`/buku/${targetSlug}`} className="shrink-0">
                             <Button
                               variant="outline"
                               size="sm"
@@ -1052,9 +1056,9 @@ function LoansContent() {
                       {/* Detail Waktu Tiap Sesi Peminjaman (Full Width Expandable Drawer) */}
                       {isExpanded && (
                         <div className="border-t border-border/70 bg-muted/20 p-4 sm:p-5 space-y-3.5 animate-fade-in">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground pb-2.5 border-b border-border/50">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-muted-foreground pb-2.5 border-b border-border/50">
                             <span className="flex items-center gap-2 font-semibold text-foreground">
-                              <History className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                              <History className="h-4 w-4 text-sky-600 dark:text-sky-400 shrink-0" />
                               <span>Riwayat Sesi Peminjaman ({sessions.length} Sesi Tercatat)</span>
                             </span>
                             <span className="text-[11px] text-muted-foreground">
@@ -1198,7 +1202,9 @@ function LoansContent() {
                             <img
                               src={book.coverUrl}
                               alt={book.title}
-                              className="h-full w-full object-cover group-hover/cover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover group-hover/cover:scale-105 transition-transform duration-300 pointer-events-none"
                             />
                             <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-black/30 to-transparent z-10" />
                           </Link>
@@ -1264,7 +1270,7 @@ function LoansContent() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 shrink-0">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center justify-end gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-border/40 w-full sm:w-auto">
                           <Button
                             type="button"
                             variant="outline"

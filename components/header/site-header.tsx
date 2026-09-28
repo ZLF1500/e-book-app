@@ -31,6 +31,9 @@ import {
   FileText,
   HelpCircle,
   Crown,
+  Sun,
+  Moon,
+  MoreVertical,
 } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
@@ -40,6 +43,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/lib/auth-context"
+import { useTheme } from "next-themes"
 import { NotificationPopover } from "@/components/header/notification-popover"
 import {
   DropdownMenu,
@@ -71,15 +75,14 @@ import { saveRecentlyViewed } from "@/lib/recently-viewed"
 const LOCAL_STORAGE_HISTORY_KEY = "rsjd_search_history_v1"
 const LOCAL_STORAGE_BOOKMARK_KEY = "rsjd_bookmarks_v1"
 
-// Quick keywords displayed under search bar (like Zahran / Gramedia reference)
-const HEADER_KEYWORDS = [
-  { label: "Kecemasan", query: "kecemasan" },
-  { label: "Mindfulness", query: "mindfulness" },
-  { label: "Pola Asuh", query: "parenting" },
-  { label: "Depresi", query: "depresi" },
-  { label: "Tidur Nyenyak", query: "tidur" },
-  { label: "Psikosomatis", query: "psikosomatis" },
-]
+export interface HeaderCategoryItem {
+  id: string
+  name: string
+  slug: string
+  iconName?: string
+  description?: string
+  bookCount?: number
+}
 
 export function SiteHeader() {
   const router = useRouter()
@@ -87,12 +90,14 @@ export function SiteHeader() {
   const isKatalogActive = pathname === "/buku" || pathname.startsWith("/buku/")
   const isPinjamanActive = pathname === "/pinjaman" || pathname.startsWith("/pinjaman/")
   const { user, isGuest, logout } = useAuth()
+  const { theme, setTheme, resolvedTheme } = useTheme()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isSearching, setIsSearching] = React.useState(false)
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
   const [isMegaMenuOpen, setIsMegaMenuOpen] = React.useState(false)
   const [megaMenuTab, setMegaMenuTab] = React.useState<"ebook" | "kurasi">("ebook")
   const [showAllTags, setShowAllTags] = React.useState(false)
+  const [headerCategories, setHeaderCategories] = React.useState<HeaderCategoryItem[]>([])
   const [searchHistory, setSearchHistory] = React.useState<string[]>([])
   const [bookmarkCount, setBookmarkCount] = React.useState<number>(0)
   const [activeLoansCount, setActiveLoansCount] = React.useState<number>(0)
@@ -103,11 +108,15 @@ export function SiteHeader() {
   const [isTermsModalOpen, setIsTermsModalOpen] = React.useState(false)
   const [isHelpModalOpen, setIsHelpModalOpen] = React.useState(false)
   const [isUserDropdownOpen, setIsUserDropdownOpen] = React.useState(false)
+  const [isProfileDrawerOpen, setIsProfileDrawerOpen] = React.useState(false)
+  const [isNotifOpen, setIsNotifOpen] = React.useState(false)
 
   const searchContainerRef = React.useRef<HTMLDivElement>(null)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
+  const searchMegaMenuRef = React.useRef<HTMLDivElement>(null)
   const mobileSearchContainerRef = React.useRef<HTMLDivElement>(null)
   const mobileSearchInputRef = React.useRef<HTMLInputElement>(null)
+  const mobileSearchPanelRef = React.useRef<HTMLDivElement>(null)
   const megaMenuRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
@@ -126,10 +135,6 @@ export function SiteHeader() {
       const savedHistory = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY)
       if (savedHistory) {
         setSearchHistory(JSON.parse(savedHistory))
-      } else {
-        const defaultHistory = ["kecemasan", "mindfulness", "pola asuh anak"]
-        setSearchHistory(defaultHistory)
-        localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(defaultHistory))
       }
     } catch {}
 
@@ -203,17 +208,33 @@ export function SiteHeader() {
     }
   }, [])
 
+  // Tutup semua panel saat berpindah halaman rute
+  React.useEffect(() => {
+    setIsSearchOpen(false)
+    setIsMegaMenuOpen(false)
+    setIsNotifOpen(false)
+  }, [pathname])
+
   // Close search & mega menu dropdowns on outside click
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      const isInsideDesktop = searchContainerRef.current?.contains(event.target as Node)
-      const isInsideMobile = mobileSearchContainerRef.current?.contains(event.target as Node)
-      if (!isInsideDesktop && !isInsideMobile) {
+      const target = event.target as Node
+      const isInsideDesktop = searchContainerRef.current?.contains(target)
+      const isInsideMobile = mobileSearchContainerRef.current?.contains(target)
+      const isInsideSearchMega = searchMegaMenuRef.current?.contains(target)
+      const isInsideMobileSearchPanel = mobileSearchPanelRef.current?.contains(target)
+
+      if (
+        !isInsideDesktop &&
+        !isInsideMobile &&
+        !isInsideSearchMega &&
+        !isInsideMobileSearchPanel
+      ) {
         setIsSearchOpen(false)
       }
       if (
         megaMenuRef.current &&
-        !megaMenuRef.current.contains(event.target as Node)
+        !megaMenuRef.current.contains(target)
       ) {
         setIsMegaMenuOpen(false)
       }
@@ -237,9 +258,12 @@ export function SiteHeader() {
             : searchInputRef.current
         targetInput?.focus()
         setIsSearchOpen(true)
+        setIsMegaMenuOpen(false)
+        setIsNotifOpen(false)
       } else if (event.key === "Escape") {
         setIsSearchOpen(false)
         setIsMegaMenuOpen(false)
+        setIsNotifOpen(false)
         searchInputRef.current?.blur()
         mobileSearchInputRef.current?.blur()
       }
@@ -342,6 +366,17 @@ export function SiteHeader() {
     return Array.from(map.values())
   }, [headerBooks])
 
+  const fetchCategories = React.useCallback(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && Array.isArray(d.categories)) {
+          setHeaderCategories(d.categories)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const fetchTags = React.useCallback(() => {
     fetch("/api/tags")
       .then((r) => r.json())
@@ -364,8 +399,11 @@ export function SiteHeader() {
       .catch(() => {})
 
     fetchTags()
-    window.addEventListener("tags-updated", fetchTags)
-    window.addEventListener("books-updated", () => {
+    fetchCategories()
+
+    const onTagsUpdated = () => fetchTags()
+    const onCategoriesUpdated = () => fetchCategories()
+    const onBooksUpdated = () => {
       fetch("/api/books")
         .then((r) => r.json())
         .then((d) => {
@@ -375,26 +413,36 @@ export function SiteHeader() {
         })
         .catch(() => {})
       fetchTags()
-    })
+      fetchCategories()
+    }
+
+    window.addEventListener("tags-updated", onTagsUpdated)
+    window.addEventListener("categories-updated", onCategoriesUpdated)
+    window.addEventListener("books-updated", onBooksUpdated)
 
     return () => {
-      window.removeEventListener("tags-updated", fetchTags)
+      window.removeEventListener("tags-updated", onTagsUpdated)
+      window.removeEventListener("categories-updated", onCategoriesUpdated)
+      window.removeEventListener("books-updated", onBooksUpdated)
     }
-  }, [fetchTags])
+  }, [fetchTags, fetchCategories])
 
-  // Filtered lists for typing state
+  // Filtered lists for typing state (Memoized for high FPS performance)
   const trimmedQuery = searchQuery.trim().toLowerCase()
   const isTyping = trimmedQuery.length > 0
 
-  const filteredBooks = isTyping
-    ? headerBooks.filter(
+  const filteredBooks = React.useMemo(() => {
+    if (!isTyping) return []
+    return headerBooks
+      .filter(
         (b) =>
           b.title.toLowerCase().includes(trimmedQuery) ||
           b.authorName.toLowerCase().includes(trimmedQuery) ||
           (Array.isArray(b.tags) && b.tags.some((t) => t.toLowerCase().includes(trimmedQuery))) ||
           (b.categoryName && b.categoryName.toLowerCase().includes(trimmedQuery))
-      ).slice(0, 5)
-    : []
+      )
+      .slice(0, 5)
+  }, [isTyping, headerBooks, trimmedQuery])
 
   // Pool tag lengkap dari tabel tags dan dari buku katalog riil (menjamin tag baru seperti "isekai" selalu muncul)
   const allAvailableTags = React.useMemo(() => {
@@ -421,15 +469,30 @@ export function SiteHeader() {
     return Array.from(map.values())
   }, [popularTags, headerBooks])
 
-  const filteredTags = isTyping
-    ? allAvailableTags.filter((t) => t.name.toLowerCase().includes(trimmedQuery) || t.slug.toLowerCase().includes(trimmedQuery)).slice(0, 12)
-    : []
+  // Quick keywords dynamically derived from real database tags
+  const quickKeywords = React.useMemo(() => {
+    if (allAvailableTags.length > 0) {
+      return allAvailableTags.slice(0, 6).map((t) => ({
+        label: t.name,
+        query: t.slug,
+      }))
+    }
+    return []
+  }, [allAvailableTags])
 
-  const filteredAuthors = isTyping
-    ? dynamicAuthors.filter((a) => a.name.toLowerCase().includes(trimmedQuery)).slice(0, 4)
-    : []
+  const filteredTags = React.useMemo(() => {
+    if (!isTyping) return []
+    return allAvailableTags
+      .filter((t) => t.name.toLowerCase().includes(trimmedQuery) || t.slug.toLowerCase().includes(trimmedQuery))
+      .slice(0, 12)
+  }, [isTyping, allAvailableTags, trimmedQuery])
 
-  const displayTags = showAllTags ? allAvailableTags : allAvailableTags.slice(0, 25)
+  const filteredAuthors = React.useMemo(() => {
+    if (!isTyping) return []
+    return dynamicAuthors.filter((a) => a.name.toLowerCase().includes(trimmedQuery)).slice(0, 4)
+  }, [isTyping, dynamicAuthors, trimmedQuery])
+
+  const displayTags = showAllTags ? allAvailableTags : allAvailableTags.slice(0, 8)
 
   const renderSearchBox = (isMobile: boolean) => {
     const containerRef = isMobile ? mobileSearchContainerRef : searchContainerRef
@@ -455,10 +518,17 @@ export function SiteHeader() {
             onFocus={() => {
               setIsSearchOpen(true)
               setIsMegaMenuOpen(false)
+              setIsNotifOpen(false)
+            }}
+            onClick={() => {
+              setIsSearchOpen(true)
+              setIsMegaMenuOpen(false)
+              setIsNotifOpen(false)
             }}
             className={cn(
               "w-full pl-10 pr-10 rounded-full bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 focus-visible:bg-white dark:focus-visible:bg-neutral-950 focus-visible:border-sky-600 focus-visible:ring-2 focus-visible:ring-sky-500/20 transition-all shadow-inner",
-              isMobile ? "h-9 text-xs" : "h-10 text-xs sm:text-sm"
+              isMobile ? "h-9 text-xs" : "h-10 text-xs sm:text-sm",
+              isSearchOpen && "border-sky-500 ring-2 ring-sky-500/20 bg-white dark:bg-neutral-950"
             )}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -472,259 +542,14 @@ export function SiteHeader() {
                   setSearchQuery("")
                   inputRef.current?.focus()
                 }}
-                className="p-1 text-neutral-400 hover:text-neutral-700 rounded-full"
+                className="p-1 text-neutral-400 hover:text-neutral-700 rounded-full cursor-pointer"
+                title="Bersihkan kata kunci"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : null}
           </div>
         </form>
-
-        {/* SMART SEARCH DROPDOWN */}
-        {isSearchOpen && (
-          <div
-            className={cn(
-              "absolute top-full mt-2 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 shadow-2xl z-50 animate-fade-scale overflow-y-auto overscroll-contain",
-              isMobile
-                ? "left-0 right-0 p-3 max-h-[65vh]"
-                : "left-1/2 -translate-x-1/2 w-[92vw] sm:w-[480px] md:w-[540px] max-w-[560px] p-4 max-h-[70vh]"
-            )}
-          >
-            {/* KONDISI A: BELUM MENGETIK */}
-            {!isTyping && (
-              <div className="space-y-4">
-                {/* 1. Riwayat Pencarian Milik User */}
-                {searchHistory.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs font-semibold text-neutral-500 px-1">
-                      <span className="flex items-center gap-1.5">
-                        <History className="h-3.5 w-3.5 text-sky-600" />
-                        Riwayat Pencarian
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleClearAllHistory}
-                        className="text-[11px] text-neutral-400 hover:text-destructive transition-colors font-medium"
-                      >
-                        Hapus Semua
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {searchHistory.map((item, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => {
-                            setSearchQuery(item)
-                            handleExecuteSearch(item)
-                          }}
-                          className="group flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-neutral-100 dark:bg-neutral-900 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-800 hover:border-sky-300 cursor-pointer transition-colors"
-                        >
-                          <span>{item}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => handleRemoveHistoryItem(item, e)}
-                            className="text-neutral-400 hover:text-destructive rounded-full p-0.5"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. Tags Populer */}
-                <div className="space-y-2 pt-2 border-t border-neutral-100 dark:border-neutral-900">
-                  <div className="flex items-center justify-between text-xs font-semibold text-neutral-500 px-1">
-                    <span className="flex items-center gap-1.5">
-                      <TagIcon className="h-3.5 w-3.5 text-sky-600" />
-                      Tag Populer
-                    </span>
-                    <span className="text-[11px] text-neutral-400 font-normal">
-                      {displayTags.length} tag
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 max-h-36 overflow-y-auto pr-1">
-                    {displayTags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => handleSelectTag(tag.slug, tag.name)}
-                        className="px-2.5 py-1 rounded-md text-xs font-medium bg-neutral-100 dark:bg-neutral-900 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-neutral-700 dark:text-neutral-300 hover:text-sky-600 border border-neutral-200 dark:border-neutral-800 transition-all text-left"
-                      >
-                        #{tag.name}
-                      </button>
-                    ))}
-                    {!showAllTags && popularTags.length > 25 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAllTags(true)}
-                        className="text-xs font-semibold text-sky-600 hover:text-sky-700 underline underline-offset-2 px-2 py-1"
-                      >
-                        Lainnya ({popularTags.length - 25}+)
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* 3. Penulis Populer */}
-                <div className="space-y-2 pt-2 border-t border-neutral-100 dark:border-neutral-900">
-                  <div className="text-xs font-semibold text-neutral-500 px-1">
-                    Penulis Populer
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {dynamicAuthors.slice(0, 4).map((author) => (
-                      <div
-                        key={author.id}
-                        onClick={() => handleSelectAuthor(author.name)}
-                        className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 cursor-pointer transition-colors"
-                      >
-                        <img
-                          src={author.photoUrl}
-                          alt={author.name}
-                          className="h-8 w-8 sm:h-9 sm:w-9 rounded-full object-cover ring-1 ring-border shrink-0"
-                        />
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-semibold text-foreground truncate">
-                            {author.name}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground truncate">
-                            {author.title}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* KONDISI B: SEDANG MENGETIK */}
-            {isTyping && (
-              <div className="animate-fade-in space-y-4">
-                {isSearching ? (
-                  <div className="space-y-3 py-1 animate-fade-in">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2">
-                      Mencari Koleksi...
-                    </div>
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center gap-3 p-2 rounded-xl">
-                        <Skeleton className="h-11 w-8 rounded-md shrink-0" />
-                        <div className="space-y-1.5 flex-1">
-                          <Skeleton className="h-3.5 w-3/4 rounded-md" />
-                          <Skeleton className="h-2.5 w-1/3 rounded-md" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    {/* Saran Judul Buku */}
-                    {filteredBooks.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
-                          Buku Terkait
-                        </div>
-                        {filteredBooks.map((book) => (
-                          <div
-                            key={book.id}
-                            onClick={() => {
-                              saveRecentlyViewed(book)
-                              setIsSearchOpen(false)
-                              router.push(`/buku/${book.slug}`)
-                            }}
-                            className="flex items-center gap-3 p-2 rounded-xl hover:bg-sky-50 dark:hover:bg-sky-950/40 cursor-pointer transition-colors"
-                          >
-                            <img
-                              src={book.coverUrl}
-                              alt={book.title}
-                              className="h-11 w-8 rounded-md object-cover shadow-xs ring-1 ring-border/50 shrink-0"
-                            />
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <span className="text-xs font-semibold text-foreground truncate">
-                                {book.title}
-                              </span>
-                              <span className="text-[11px] text-muted-foreground truncate">
-                                {book.authorName} &bull; {book.categoryName}
-                              </span>
-                            </div>
-                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-50 shrink-0" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Saran Tags yang Cocok */}
-                    {filteredTags.length > 0 && (
-                      <div className="space-y-2 pt-2 border-t">
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2">
-                          Tag yang Cocok
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 px-2">
-                          {filteredTags.map((tag) => (
-                            <button
-                              key={tag.id}
-                              type="button"
-                              onClick={() => handleSelectTag(tag.slug, tag.name)}
-                              className="px-2.5 py-1 rounded-md text-xs font-medium bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 hover:bg-sky-100 transition-colors"
-                            >
-                              #{tag.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Saran Penulis yang Cocok */}
-                    {filteredAuthors.length > 0 && (
-                      <div className="space-y-2 pt-2 border-t">
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2">
-                          Penulis
-                        </div>
-                        <div className="space-y-1">
-                          {filteredAuthors.map((author) => (
-                            <div
-                              key={author.id}
-                              onClick={() => handleSelectAuthor(author.name)}
-                              className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 cursor-pointer transition-colors"
-                            >
-                              <img
-                                src={author.photoUrl}
-                                alt={author.name}
-                                className="h-8 w-8 rounded-full object-cover ring-1 ring-border"
-                              />
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-semibold text-foreground truncate">
-                                  {author.name}
-                                </span>
-                                <span className="text-[11px] text-muted-foreground truncate">
-                                  {author.title}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* CTA Submit Keseluruhan */}
-                    <div className="pt-2 border-t">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleExecuteSearch(searchQuery)}
-                        className="w-full justify-between h-9 text-xs font-medium text-sky-600 hover:text-sky-700 hover:bg-sky-50"
-                      >
-                        <span>Cari semua untuk &ldquo;{searchQuery}&rdquo;</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     )
   }
@@ -744,17 +569,18 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white dark:bg-neutral-950 transition-all shadow-xs">
+    <header className="sticky top-0 z-50 w-full border-b bg-white dark:bg-neutral-950 shadow-xs">
       {/* MAIN HEADER BAR */}
       <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 lg:px-6">
         
-        {/* BRAND / LOGO + KATEGORI */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* BRAND / LOGO + KATEGORI (SISI KIRI: SEIMBANG DENGAN KANAN) */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 lg:min-w-[270px] xl:min-w-[290px]">
           <Link href="/" className="group flex items-center gap-2 focus:outline-hidden mr-1">
             <div className="relative h-9 w-9 sm:h-10 sm:w-10 shrink-0 overflow-hidden rounded-xl bg-white p-0.5 ring-1 ring-border shadow-xs group-hover:scale-105 transition-transform flex items-center justify-center">
               <img
                 src="/logo.png"
                 alt="Logo RS Atma Husada Mahakam"
+                decoding="async"
                 className="h-full w-full object-contain"
               />
             </div>
@@ -781,6 +607,7 @@ export function SiteHeader() {
               onClick={() => {
                 setIsMegaMenuOpen(!isMegaMenuOpen)
                 setIsSearchOpen(false)
+                setIsNotifOpen(false)
               }}
               className={cn(
                 "h-9 gap-1.5 px-3 text-xs sm:text-sm font-semibold text-neutral-700 dark:text-neutral-300 hover:text-neutral-900 rounded-xl",
@@ -905,58 +732,21 @@ export function SiteHeader() {
                             }}
                             className="w-full text-left px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-bold cursor-pointer"
                           >
-                            ⭐ Rekomendasi Klinisi RSJD
+                            ⭐ Semua Rekomendasi Klinisi
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsMegaMenuOpen(false)
-                              router.push("/buku?category=kesehatan-jiwa-psikiatri")
-                            }}
-                            className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-400 font-medium cursor-pointer"
-                          >
-                            Psikiatri & Pemulihan Jiwa
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsMegaMenuOpen(false)
-                              router.push("/buku?tag=terapi-kognitif")
-                            }}
-                            className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-400 font-medium cursor-pointer"
-                          >
-                            Biblioterapi & CBT
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsMegaMenuOpen(false)
-                              router.push("/buku?tag=stres")
-                            }}
-                            className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-400 font-medium cursor-pointer"
-                          >
-                            Regulasi Emosi & Stres
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsMegaMenuOpen(false)
-                              router.push("/buku?tag=keluarga-tangguh")
-                            }}
-                            className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-400 font-medium cursor-pointer"
-                          >
-                            Dukungan Keluarga & Caregiver
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsMegaMenuOpen(false)
-                              router.push("/buku?category=pengembangan-diri-mindfulness")
-                            }}
-                            className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-400 font-medium cursor-pointer"
-                          >
-                            Mindfulness & Relaksasi
-                          </button>
+                          {headerCategories.slice(0, 5).map((cat) => (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => {
+                                setIsMegaMenuOpen(false)
+                                router.push(`/buku?category=${encodeURIComponent(cat.slug)}`)
+                              }}
+                              className="w-full text-left px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 text-neutral-600 dark:text-neutral-400 font-medium cursor-pointer truncate"
+                            >
+                              {cat.name}
+                            </button>
+                          ))}
                         </>
                       )}
                     </div>
@@ -987,357 +777,513 @@ export function SiteHeader() {
                     </div>
                   </div>
 
-                  {/* Right Columns: category grid with sub-items */}
-                  <div className="col-span-1 md:col-span-8 lg:col-span-9 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 max-h-[70vh] overflow-y-auto pr-2">
-                    {/* Group 1: Kesehatan Mental & Psikiatri */}
-                    <div className="space-y-4">
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMegaMenuOpen(false)
-                            router.push("/buku?category=kesehatan-jiwa-psikiatri")
-                          }}
-                          className="font-heading text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider mb-2 hover:text-sky-600 transition-colors text-left flex items-center gap-1 group cursor-pointer"
-                        >
-                          <span>Kesehatan Jiwa & Psikiatri</span>
-                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-sky-600" />
-                        </button>
-                        <ul className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=kesehatan-jiwa")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Gangguan Mood & Ansietas
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=skizofrenia")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Skizofrenia & Psikotik
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=bipolar")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Gangguan Afektif Bipolar
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=psikosomatis")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Keluhan Psikosomatis
-                            </button>
-                          </li>
-                        </ul>
+                  {/* Right Columns: category grid dynamically loaded from MariaDB */}
+                  <div className="col-span-1 md:col-span-8 lg:col-span-9 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 lg:gap-5 max-h-[70vh] overflow-y-auto pr-2">
+                    {headerCategories.length === 0 ? (
+                      <div className="col-span-full py-12 text-center space-y-2">
+                        <Spinner className="h-5 w-5 mx-auto text-sky-600 animate-spin" />
+                        <p className="text-xs text-muted-foreground">Memuat kategori katalog...</p>
                       </div>
+                    ) : (
+                      headerCategories.map((cat) => {
+                        const catBooks = headerBooks.filter(
+                          (b) =>
+                            b.categoryId === cat.id ||
+                            (b.categoryName && b.categoryName.toLowerCase() === cat.name.toLowerCase())
+                        )
+                        const catTags = Array.from(
+                          new Set(catBooks.flatMap((b) => b.tags || []))
+                        ).slice(0, 3)
 
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMegaMenuOpen(false)
-                            router.push("/buku?category=manajemen-stres-burnout")
-                          }}
-                          className="font-heading text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider mb-2 hover:text-sky-600 transition-colors text-left flex items-center gap-1 group cursor-pointer"
-                        >
-                          <span>Manajemen Stres & Burnout</span>
-                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-sky-600" />
-                        </button>
-                        <ul className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
-                          <li>
+                        return (
+                          <div
+                            key={cat.id}
+                            className="space-y-2 p-3.5 rounded-2xl bg-neutral-50/50 dark:bg-neutral-900/30 border border-neutral-200/60 dark:border-neutral-800/60 hover:border-sky-300 hover:bg-neutral-50 dark:hover:bg-neutral-900/50 transition-all group"
+                          >
                             <button
                               type="button"
                               onClick={() => {
                                 setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=burnout")
+                                router.push(`/buku?category=${encodeURIComponent(cat.slug)}`)
                               }}
-                              className="hover:text-sky-600 text-left"
+                              className="font-heading text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider group-hover:text-sky-600 transition-colors text-left flex items-center justify-between w-full cursor-pointer"
                             >
-                              Burnout Tenaga Medis & Pekerja
+                              <span className="truncate pr-1">{cat.name}</span>
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-neutral-200/70 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 shrink-0">
+                                {cat.bookCount ?? catBooks.length}
+                              </span>
                             </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=tidur-berkualitas")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Terapi Insomnia & Irama Sirkadian
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=relaksasi")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Teknik Relaksasi Pernapasan
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
 
-                    {/* Group 2: Psikologi & Pengembangan Diri */}
-                    <div className="space-y-4">
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMegaMenuOpen(false)
-                            router.push("/buku?category=pengembangan-diri-mindfulness")
-                          }}
-                          className="font-heading text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider mb-2 hover:text-sky-600 transition-colors text-left flex items-center gap-1 group cursor-pointer"
-                        >
-                          <span>Pengembangan Diri & Mindfulness</span>
-                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-sky-600" />
-                        </button>
-                        <ul className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=mindfulness")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Meditasi & Kesadaran Penuh
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=self-help")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Stoikisme & Ketenangan Batin
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=resiliensi")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Resiliensi & Manajemen Emosi
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=terapi-kognitif")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Terapi Kognitif Perilaku (CBT)
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
+                            {cat.description && (
+                              <p className="text-[11px] text-muted-foreground line-clamp-1 leading-normal">
+                                {cat.description}
+                              </p>
+                            )}
 
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMegaMenuOpen(false)
-                            router.push("/buku?category=psikologi-konseling")
-                          }}
-                          className="font-heading text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider mb-2 hover:text-sky-600 transition-colors text-left flex items-center gap-1 group cursor-pointer"
-                        >
-                          <span>Pertolongan Pertama Psikologis</span>
-                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-sky-600" />
-                        </button>
-                        <ul className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=pertolongan-pertama")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Psychological First Aid (PFA)
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=trauma-healing")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Intervensi Pascatrauma Bencana
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=komunikasi-terapeutik")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Komunikasi Pasien Agitasi
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
+                            {/* Live Books in this Category */}
+                            <ul className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400 pt-1.5 border-t border-border/40">
+                              {catBooks.slice(0, 3).map((book) => (
+                                <li key={book.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      saveRecentlyViewed(book)
+                                      setIsMegaMenuOpen(false)
+                                      router.push(`/buku/${book.slug}`)
+                                    }}
+                                    className="hover:text-sky-600 text-left truncate w-full flex items-center gap-1.5 transition-colors cursor-pointer text-[11px]"
+                                  >
+                                    <span className="h-1 w-1 rounded-full bg-sky-500 shrink-0" />
+                                    <span className="truncate">{book.title}</span>
+                                  </button>
+                                </li>
+                              ))}
 
-                    {/* Group 3: Parenting, Gizi & Geriatri */}
-                    <div className="space-y-4">
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMegaMenuOpen(false)
-                            router.push("/buku?category=parenting-perkembangan-anak")
-                          }}
-                          className="font-heading text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider mb-2 hover:text-sky-600 transition-colors text-left flex items-center gap-1 group cursor-pointer"
-                        >
-                          <span>Parenting & Perkembangan Anak</span>
-                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-sky-600" />
-                        </button>
-                        <ul className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=parenting")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Pola Asuh Tanpa Teriak
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=autisme")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Deteksi Dini Spektrum Autisme
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=adhd")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Pendampingan Remaja ADHD
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
+                              {catBooks.length === 0 && (
+                                <li className="text-[11px] text-muted-foreground italic py-0.5">
+                                  Belum ada buku terbit
+                                </li>
+                              )}
 
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMegaMenuOpen(false)
-                            router.push("/buku?category=gizi-kesehatan-fisik")
-                          }}
-                          className="font-heading text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider mb-2 hover:text-sky-600 transition-colors text-left flex items-center gap-1 group cursor-pointer"
-                        >
-                          <span>Gizi & Kesehatan Fisik</span>
-                          <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-sky-600" />
-                        </button>
-                        <ul className="space-y-1 text-xs text-neutral-600 dark:text-neutral-400">
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=gizi")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Gut-Brain Axis & Mikrobioma
-                            </button>
-                          </li>
-                          <li>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsMegaMenuOpen(false)
-                                router.push("/buku?tag=lansia")
-                              }}
-                              className="hover:text-sky-600 text-left"
-                            >
-                              Pendampingan Demensia Lansia
-                            </button>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-
+                              {catTags.length > 0 && (
+                                <li className="pt-1 flex flex-wrap gap-1">
+                                  {catTags.map((tag, tIdx) => (
+                                    <button
+                                      key={tIdx}
+                                      type="button"
+                                      onClick={() => {
+                                        setIsMegaMenuOpen(false)
+                                        router.push(`/buku?tag=${encodeURIComponent(tag.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}`)
+                                      }}
+                                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:text-sky-600 transition-colors"
+                                    >
+                                      #{tag}
+                                    </button>
+                                  ))}
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        )
+                      })
+                    )}
                   </div>
 
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+          {/* DESKTOP SMART SEARCH EXPANDABLE MEGA PANEL (LEBAR PENUH SEPERTI KATEGORI) */}
+          {isSearchOpen && (
+            <div
+              ref={searchMegaMenuRef}
+              className="hidden md:block fixed left-0 right-0 top-14 sm:top-16 bg-white dark:bg-neutral-950 border-b border-border shadow-2xl z-50 animate-slide-down max-h-[calc(100vh-4rem)] overflow-y-auto"
+            >
+              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-6">
+                
+                {/* SISI KIRI (col-span-4 lg:col-span-3): Riwayat, Kata Kunci Klinis Cepat & Bantuan */}
+                <div className="col-span-1 md:col-span-4 lg:col-span-3 space-y-4 border-b md:border-b-0 md:border-r border-border/70 pb-3 md:pb-0 md:pr-5">
+                  
+                  {/* Riwayat Pencarian */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-semibold text-neutral-500 px-0.5">
+                      <span className="flex items-center gap-1.5 font-bold text-foreground">
+                        <History className="h-3.5 w-3.5 text-sky-600" />
+                        Riwayat Pencarian
+                      </span>
+                      {searchHistory.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllHistory}
+                          className="text-[11px] text-muted-foreground hover:text-destructive transition-colors font-medium cursor-pointer"
+                        >
+                          Hapus Semua
+                        </button>
+                      )}
+                    </div>
+                    
+                    {searchHistory.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {searchHistory.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              setSearchQuery(item)
+                              handleExecuteSearch(item)
+                            }}
+                            className="group flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 dark:bg-neutral-900 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-800 hover:border-sky-300 cursor-pointer transition-colors"
+                          >
+                            <span>{item}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveHistoryItem(item, e)}
+                              className="text-neutral-400 hover:text-destructive rounded-full p-0.5"
+                              title="Hapus item riwayat"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic py-0.5">
+                        Belum ada riwayat pencarian terbaru.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Topik Klinis Cepat (Quick Keywords) */}
+                  {quickKeywords.length > 0 && (
+                    <div className="space-y-1.5 pt-2.5 border-t border-border/60">
+                      <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                        <span>Topik Populer</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {quickKeywords.map((kw, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setSearchQuery(kw.query)
+                              handleExecuteSearch(kw.query)
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:bg-sky-50 hover:text-sky-600 dark:hover:bg-sky-950/40 dark:hover:text-sky-300 border border-neutral-200 dark:border-neutral-800 transition-colors cursor-pointer text-left"
+                          >
+                            #{kw.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Compact Keyboard Hint */}
+                  <div className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs text-muted-foreground flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-medium text-[11px]">
+                      <Search className="h-3 w-3 text-sky-600" />
+                      <span>Tekan <kbd className="px-1.5 py-0.5 rounded bg-background border border-border text-[10px] font-mono">ESC</kbd> untuk tutup</span>
+                    </span>
+                  </div>
+
+                </div>
+
+                {/* SISI KANAN (col-span-8 lg:col-span-9): TAG POPULER, PENULIS POPULER, BUKU / HASIL LIVE */}
+                <div className="col-span-1 md:col-span-8 lg:col-span-9 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  {/* KONDISI A: BELUM MENGETIK */}
+                  {!isTyping && (
+                    <div className="space-y-4">
+                      {/* Top Bar Status */}
+                      <div className="flex items-center justify-between pb-1.5 border-b border-border/70">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                          Eksplorasi Katalog & Penulis
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsSearchOpen(false)}
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 font-medium cursor-pointer"
+                        >
+                          <span>Tutup</span>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Tag Populer */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-heading text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                            <TagIcon className="h-3.5 w-3.5 text-sky-600" />
+                            Tag Populer & Topik
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-muted-foreground">
+                              {displayTags.length} dari {allAvailableTags.length} tag
+                            </span>
+                            {allAvailableTags.length > 8 && (
+                              <button
+                                type="button"
+                                onClick={() => setShowAllTags(!showAllTags)}
+                                className="text-xs font-bold text-sky-600 hover:text-sky-700 underline underline-offset-2 cursor-pointer ml-1"
+                              >
+                                {showAllTags ? "Ringkas" : `Lihat Semua (${allAvailableTags.length})`}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {displayTags.map((tag) => (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              onClick={() => handleSelectTag(tag.slug, tag.name)}
+                              className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-neutral-100 dark:bg-neutral-900 hover:bg-sky-50 dark:hover:bg-sky-950/50 text-neutral-700 dark:text-neutral-300 hover:text-sky-600 dark:hover:text-sky-300 border border-neutral-200 dark:border-neutral-800 hover:border-sky-300 transition-all text-left cursor-pointer"
+                            >
+                              #{tag.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Penulis Populer */}
+                      <div className="space-y-2 pt-2 border-t border-border/60">
+                        <span className="font-heading text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                          <Award className="h-3.5 w-3.5 text-sky-600" />
+                          Penulis Terdaftar
+                        </span>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {dynamicAuthors.slice(0, 6).map((author) => (
+                            <div
+                              key={author.id}
+                              onClick={() => handleSelectAuthor(author.name)}
+                              className="flex items-center gap-2.5 p-2 rounded-xl bg-neutral-50/60 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800/80 hover:bg-sky-50/60 dark:hover:bg-sky-950/40 hover:border-sky-300 cursor-pointer transition-all group"
+                            >
+                              <img
+                                src={author.photoUrl}
+                                alt={author.name}
+                                loading="lazy"
+                                decoding="async"
+                                className="h-8 w-8 rounded-full object-cover ring-1 ring-border shrink-0 group-hover:scale-105 transition-transform"
+                              />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold text-foreground group-hover:text-sky-600 truncate transition-colors">
+                                  {author.name}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground truncate">
+                                  {author.title}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Koleksi Pilihan Rekomendasi Cepat */}
+                      {headerBooks.length > 0 && (
+                        <div className="space-y-3 pt-3 border-t border-border/60">
+                          <span className="font-heading text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                            <BookOpen className="h-3.5 w-3.5 text-sky-600" />
+                            Koleksi Rekomendasi Unggulan
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {headerBooks.slice(0, 3).map((book) => (
+                              <div
+                                key={book.id}
+                                onClick={() => {
+                                  saveRecentlyViewed(book)
+                                  setIsSearchOpen(false)
+                                  router.push(`/buku/${book.slug}`)
+                                }}
+                                className="flex items-center gap-3 p-2.5 rounded-2xl bg-neutral-50/60 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800/80 hover:bg-sky-50/60 dark:hover:bg-sky-950/40 hover:border-sky-300 cursor-pointer transition-all group"
+                              >
+                                <img
+                                  src={book.coverUrl}
+                                  alt={book.title}
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-12 w-9 rounded-md object-cover ring-1 ring-border shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
+                                />
+                                <div className="flex flex-col min-w-0 flex-1">
+                                  <span className="text-xs font-bold text-foreground group-hover:text-sky-600 truncate transition-colors">
+                                    {book.title}
+                                  </span>
+                                  <span className="text-[11px] text-muted-foreground truncate">
+                                    {book.authorName}
+                                  </span>
+                                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold mt-0.5 truncate">
+                                    {book.categoryName}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+
+                  {/* KONDISI B: SEDANG MENGETIK */}
+                  {isTyping && (
+                    <div className="space-y-5 animate-fade-in">
+                      {/* Header info */}
+                      <div className="flex items-center justify-between pb-2 border-b border-border/70">
+                        <span className="text-xs font-bold text-muted-foreground">
+                          Hasil Pencarian Cepat untuk &ldquo;<span className="text-sky-600">{searchQuery}</span>&rdquo;
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsSearchOpen(false)}
+                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 font-medium cursor-pointer"
+                        >
+                          <span>Tutup</span>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {isSearching ? (
+                        <div className="space-y-3 py-4">
+                          <div className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                            <Spinner className="h-4 w-4 animate-spin text-sky-600" />
+                            <span>Mencari koleksi perpustakaan...</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {[1, 2, 3, 4].map((i) => (
+                              <div key={i} className="flex items-center gap-3 p-3 rounded-2xl border border-border">
+                                <Skeleton className="h-14 w-10 rounded-md shrink-0" />
+                                <div className="space-y-2 flex-1">
+                                  <Skeleton className="h-4 w-3/4 rounded-md" />
+                                  <Skeleton className="h-3 w-1/2 rounded-md" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {/* 1. Buku Terkait */}
+                          {filteredBooks.length > 0 ? (
+                            <div className="space-y-2.5">
+                              <span className="font-heading text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                                <BookOpen className="h-3.5 w-3.5 text-sky-600" />
+                                Buku yang Cocok ({filteredBooks.length})
+                              </span>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {filteredBooks.map((book) => (
+                                  <div
+                                    key={book.id}
+                                    onClick={() => {
+                                      saveRecentlyViewed(book)
+                                      setIsSearchOpen(false)
+                                      router.push(`/buku/${book.slug}`)
+                                    }}
+                                    className="flex items-center gap-3.5 p-3 rounded-2xl bg-neutral-50/60 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800/80 hover:bg-sky-50/60 dark:hover:bg-sky-950/40 hover:border-sky-300 cursor-pointer transition-all group"
+                                  >
+                                    <img
+                                      src={book.coverUrl}
+                                      alt={book.title}
+                                      loading="lazy"
+                                      decoding="async"
+                                      className="h-14 w-10 rounded-md object-cover ring-1 ring-border shadow-2xs shrink-0 group-hover:scale-105 transition-transform"
+                                    />
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                      <span className="text-xs sm:text-[13px] font-bold text-foreground group-hover:text-sky-600 truncate transition-colors">
+                                        {book.title}
+                                      </span>
+                                      <span className="text-[11px] text-muted-foreground truncate">
+                                        {book.authorName} &bull; {book.categoryName}
+                                      </span>
+                                      <div className="flex items-center gap-1 text-[10px] font-semibold text-sky-600 dark:text-sky-400 mt-1">
+                                        <span>Buka Buku</span>
+                                        <ArrowRight className="h-2.5 w-2.5 group-hover:translate-x-1 transition-transform" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-900 text-center space-y-1">
+                              <p className="text-xs font-semibold text-foreground">
+                                Tidak ada judul buku langsung yang cocok
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Coba cari dengan kata kunci lain atau klik tombol pencarian penuh di bawah.
+                              </p>
+                            </div>
+                          )}
+
+                          {/* 2. Tag yang Cocok */}
+                          {filteredTags.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t border-border/60">
+                              <span className="font-heading text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                                <TagIcon className="h-3.5 w-3.5 text-sky-600" />
+                                Tag yang Cocok
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {filteredTags.map((tag) => (
+                                  <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => handleSelectTag(tag.slug, tag.name)}
+                                    className="px-3 py-1.5 rounded-xl text-xs font-medium bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  >
+                                    #{tag.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 3. Penulis yang Cocok */}
+                          {filteredAuthors.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t border-border/60">
+                              <span className="font-heading text-xs font-bold text-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                                <Award className="h-3.5 w-3.5 text-sky-600" />
+                                Penulis yang Cocok
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {filteredAuthors.map((author) => (
+                                  <div
+                                    key={author.id}
+                                    onClick={() => handleSelectAuthor(author.name)}
+                                    className="flex items-center gap-3 p-2.5 rounded-2xl bg-neutral-50/60 dark:bg-neutral-900/40 border border-neutral-200/80 dark:border-neutral-800/80 hover:bg-sky-50 dark:hover:bg-sky-950/40 cursor-pointer transition-colors"
+                                  >
+                                    <img
+                                      src={author.photoUrl}
+                                      alt={author.name}
+                                      loading="lazy"
+                                      decoding="async"
+                                      className="h-9 w-9 rounded-full object-cover ring-1 ring-border"
+                                    />
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-xs font-bold text-foreground truncate">
+                                        {author.name}
+                                      </span>
+                                      <span className="text-[11px] text-muted-foreground truncate">
+                                        {author.title}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tombol Eksekusi Cari Seluruh Katalog */}
+                          <div className="pt-2 border-t border-border/60">
+                            <Button
+                              type="button"
+                              onClick={() => handleExecuteSearch(searchQuery)}
+                              className="w-full justify-between h-10 text-xs sm:text-sm font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-xs"
+                            >
+                              <span>Cari seluruh katalog untuk &ldquo;{searchQuery}&rdquo;</span>
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+
+              </div>
             </div>
+          )}
+
+        {/* DESKTOP SMART SEARCH BAR (PANJANG, LEBAR & SIMETRIS DI TENGAH) */}
+        <div className="hidden md:flex flex-1 max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-3 lg:mx-6 justify-center">
+          <div className="w-full">
+            {renderSearchBox(false)}
+          </div>
         </div>
 
-        {/* DESKTOP SMART SEARCH BAR (LUAS, SIMETRIS & PANJANG DI TENGAH) */}
-        <div className="hidden md:flex flex-1 max-w-2xl lg:max-w-3xl mx-3 lg:mx-4 justify-center">
-          {renderSearchBox(false)}
-        </div>
-
-        {/* RIGHT ACTIONS: KATALOG, PINJAMAN, BOOKMARK, PROFILE */}
-        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-          {/* 1. Akses Katalog (Di sebelah kiri Pinjaman, dengan Indikator :active) */}
+        {/* RIGHT ACTIONS: KATALOG, PINJAMAN, NOTIFIKASI, PROFIL (SEIMBANG DENGAN SISI KIRI) */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 justify-end lg:min-w-[270px] xl:min-w-[290px]">
+          {/* 1. Akses Katalog (Desktop & Mobile) */}
           <Link
             href="/buku"
             className={cn(
@@ -1388,26 +1334,59 @@ export function SiteHeader() {
               </>
             )}
           </Link>
+
           {!user ? (
             <div className="flex items-center gap-1 sm:gap-1.5">
               <Link href="/masuk">
-                <Button variant="ghost" size="sm" className="h-8 sm:h-9 px-2 sm:px-3 text-xs font-semibold text-foreground hover:text-sky-600">
+                <Button size="sm" className="h-8 sm:h-9 px-3 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-xs transition-all">
                   Masuk
                 </Button>
               </Link>
-              <Link href="/daftar">
-                <Button size="sm" className="h-8 sm:h-9 px-2.5 sm:px-3.5 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-xs">
+              <Link href="/daftar" className="hidden sm:inline-flex">
+                <Button variant="ghost" size="sm" className="h-8 sm:h-9 px-2.5 sm:px-3 text-xs font-semibold text-foreground hover:text-sky-600 rounded-xl">
                   Daftar
                 </Button>
               </Link>
+
+              {/* Mobile Guest Menu Trigger (Icon garis 3 / hamburger di HP) */}
+              <div className="block md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileDrawerOpen(true)}
+                  className={cn(
+                    "h-9 w-9 text-xs font-semibold rounded-xl transition-all flex items-center justify-center shrink-0 cursor-pointer",
+                    isProfileDrawerOpen
+                      ? "bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 font-bold border border-sky-200/80 dark:border-sky-800/80 shadow-xs"
+                      : "text-neutral-700 dark:text-neutral-300 hover:text-sky-600 hover:bg-neutral-100 dark:hover:bg-neutral-900 border border-transparent"
+                  )}
+                  aria-label="Buka Menu & Pengaturan"
+                  title="Menu Utama"
+                >
+                  <Menu className="h-4.5 w-4.5" />
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              {/* Notifikasi Pengguna */}
-              <NotificationPopover />
+              {/* Notifikasi Pengguna (Dapat di-expand seperti Kategori) */}
+              <NotificationPopover
+                isOpen={isNotifOpen}
+                onToggle={() => {
+                  setIsNotifOpen((prev) => {
+                    const next = !prev
+                    if (next) {
+                      setIsMegaMenuOpen(false)
+                      setIsSearchOpen(false)
+                    }
+                    return next
+                  })
+                }}
+                onClose={() => setIsNotifOpen(false)}
+              />
 
-              {/* Profile Menu Dropdown (Gramedia Aesthetic with RSJD PerpusAHM Features) */}
-              <DropdownMenu open={isUserDropdownOpen} onOpenChange={setIsUserDropdownOpen}>
+              {/* 1. DESKTOP PROFILE MENU (Dropdown Menu untuk tampilan layar md ke atas) */}
+              <div className="hidden md:block">
+                <DropdownMenu open={isUserDropdownOpen} onOpenChange={setIsUserDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -1659,7 +1638,28 @@ export function SiteHeader() {
                     )}
                   </DropdownMenuGroup>
 
+                  <DropdownMenuSeparator className="my-1.5" />
 
+                  {/* Ganti Tema Tampilan */}
+                  <DropdownMenuItem
+                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:text-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative h-4 w-4 flex items-center justify-center">
+                        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
+                        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-sky-400" />
+                      </div>
+                      <span className="font-medium text-[13px]">
+                        Tema: {resolvedTheme === "dark" ? "Mode Gelap" : "Mode Terang"}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-muted-foreground group-hover:text-foreground">
+                      {resolvedTheme === "dark" ? "Gelap" : "Terang"}
+                    </span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="my-1.5" />
 
                   {/* 6. Keluar Akun (Logout) */}
                   <DropdownMenuItem
@@ -1674,9 +1674,406 @@ export function SiteHeader() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
+
+              {/* 2. MOBILE MENU TRIGGER (Icon titik tiga di HP - tanpa border, selaras dengan tombol lain) */}
+              <div className="block md:hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileDrawerOpen(true)}
+                  className={cn(
+                    "h-9 w-9 text-xs font-semibold rounded-xl transition-all flex items-center justify-center shrink-0 cursor-pointer",
+                    isProfileDrawerOpen
+                      ? "bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 font-bold border border-sky-200/80 dark:border-sky-800/80 shadow-xs"
+                      : "text-neutral-700 dark:text-neutral-300 hover:text-sky-600 hover:bg-neutral-100 dark:hover:bg-neutral-900 border border-transparent"
+                  )}
+                  aria-label="Buka Menu Akun & Pengaturan"
+                  title="Menu Utama"
+                >
+                  <Menu className="h-4.5 w-4.5" />
+                </button>
+              </div>
             </>
           )}
         </div>
+
+        {/* SIDEBAR SHEET DRAWER UNTUK TAMPILAN HP (Pengguna & Tamu) */}
+        <Sheet open={isProfileDrawerOpen} onOpenChange={setIsProfileDrawerOpen}>
+          <SheetContent
+            side="right"
+            showCloseButton={false}
+            className="w-[300px] sm:w-[340px] p-0 flex flex-col justify-between overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden bg-white dark:bg-neutral-950 border-l border-border"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menu Pengguna & Pengaturan</SheetTitle>
+            </SheetHeader>
+
+            <div className="flex-1 flex flex-col">
+              {/* Mobile Sidebar Header */}
+              <div className="flex items-center justify-between p-4 border-b border-border/80 bg-neutral-50/80 dark:bg-neutral-900/60 sticky top-0 z-10 backdrop-blur-xs">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="h-4 w-4 text-sky-600" />
+                  <span className="font-heading font-bold text-sm text-foreground">
+                    {user ? "Menu Akun & Pengaturan" : "Menu & Pengaturan"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileDrawerOpen(false)}
+                  className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 flex items-center justify-center transition-colors cursor-pointer"
+                  aria-label="Tutup menu"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Profile Card / Guest Card */}
+              {user ? (
+                <div className="p-4 border-b border-border/60 bg-gradient-to-b from-sky-50/60 to-transparent dark:from-sky-950/20 dark:to-transparent">
+                  <div className="flex items-center gap-3">
+                    <Avatar className={cn(
+                      "h-12 w-12 shrink-0 ring-2",
+                      user?.role === "super_admin"
+                        ? "ring-amber-500 shadow-sm shadow-amber-500/20"
+                        : user?.role === "admin"
+                        ? "ring-indigo-500/50"
+                        : "ring-sky-500/20"
+                    )}>
+                      <AvatarImage
+                        src={user?.avatarUrl || undefined}
+                        alt={user?.name || "Foto Profil"}
+                        referrerPolicy="no-referrer"
+                        className="object-cover"
+                      />
+                      <AvatarFallback className={cn(
+                        "text-white font-bold text-sm",
+                        user?.role === "super_admin"
+                          ? "bg-gradient-to-br from-amber-500 via-rose-500 to-indigo-600"
+                          : user?.role === "admin"
+                          ? "bg-indigo-600"
+                          : "bg-sky-600"
+                      )}>
+                        {user?.name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-bold text-foreground truncate max-w-[160px]">
+                          {user?.name}
+                        </span>
+                        {user?.role === "super_admin" ? (
+                          <Badge className="bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white text-[9px] px-1.5 py-0 h-4 shrink-0 font-bold shadow-xs flex items-center gap-1">
+                            <Crown className="h-2.5 w-2.5" />
+                            <span>Super Admin</span>
+                          </Badge>
+                        ) : user?.role === "admin" ? (
+                          <Badge className="bg-indigo-600 text-white text-[9px] px-1.5 py-0 h-4 shrink-0 font-semibold flex items-center gap-1">
+                            <Shield className="h-2.5 w-2.5" />
+                            <span>Admin</span>
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {user?.email}
+                      </span>
+                      <div className="mt-1">
+                        {user?.role === "super_admin" ? (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <Crown className="h-3 w-3 shrink-0" />
+                            <span>Super Administrator RSJD</span>
+                          </span>
+                        ) : user?.role === "admin" ? (
+                          <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                            <Shield className="h-3 w-3 shrink-0" />
+                            <span>Pustakawan • Admin RSJD</span>
+                          </span>
+                        ) : user?.isVerified ? (
+                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <Check className="h-3 w-3 shrink-0" />
+                            <span>
+                              {user?.nik && user.nik.trim()
+                                ? "Terverifikasi (NIK)"
+                                : "Anggota Terverifikasi"}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                            <Clock className="h-3 w-3 shrink-0" />
+                            <span>Belum Terverifikasi</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 border-b border-border/60 bg-gradient-to-b from-sky-50/60 to-transparent dark:from-sky-950/20 dark:to-transparent">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-full bg-sky-100 dark:bg-sky-950/70 border border-sky-300 dark:border-sky-800 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
+                      <UserIcon className="h-5 w-5" />
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-bold text-foreground">Pengunjung Tamu</span>
+                      <span className="text-xs text-muted-foreground">Perpustakaan Digital RSJD</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <Link href="/masuk" onClick={() => setIsProfileDrawerOpen(false)}>
+                      <Button size="sm" className="w-full h-8 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-xs">
+                        Masuk
+                      </Button>
+                    </Link>
+                    <Link href="/daftar" onClick={() => setIsProfileDrawerOpen(false)}>
+                      <Button variant="outline" size="sm" className="w-full h-8 text-xs font-semibold rounded-xl border-border">
+                        Daftar
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Fitur Switch Theme di Sidebar Mobile (Permintaan User: "kalo di hp taro di sidebarnya") */}
+              <div className="px-3.5 py-2.5 border-b border-border/60 bg-muted/20 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="relative h-7 w-7 rounded-lg bg-background border border-border/80 flex items-center justify-center shadow-xs text-foreground shrink-0">
+                    <Sun className="h-3.5 w-3.5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
+                    <Moon className="absolute h-3.5 w-3.5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-sky-400" />
+                  </div>
+                  <div className="flex flex-col text-left min-w-0">
+                    <span className="text-xs font-bold text-foreground truncate">Tema Tampilan</span>
+                    <span className="text-[10px] text-muted-foreground truncate">
+                      {resolvedTheme === "dark" ? "Mode Gelap" : "Mode Terang"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Compact Pill Toggle Button */}
+                <div className="flex items-center bg-muted/90 p-0.5 rounded-xl border border-border/60 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setTheme("light")}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+                      resolvedTheme !== "dark"
+                        ? "bg-white dark:bg-neutral-800 text-amber-600 dark:text-amber-400 shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Mode Terang"
+                  >
+                    <Sun className="h-3 w-3" />
+                    <span>Terang</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTheme("dark")}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer",
+                      resolvedTheme === "dark"
+                        ? "bg-white dark:bg-neutral-800 text-sky-500 dark:text-sky-400 shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Mode Gelap"
+                  >
+                    <Moon className="h-3 w-3" />
+                    <span>Gelap</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Navigation List */}
+              <div className="p-3 space-y-1 overflow-y-auto flex-1">
+                {/* 1. Beranda */}
+                <Link
+                  href="/"
+                  onClick={() => setIsProfileDrawerOpen(false)}
+                  className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3">
+                    <Home className="h-4 w-4 text-neutral-500 group-hover:text-sky-600 transition-colors" />
+                    <span className="font-medium text-[13px]">Beranda</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                </Link>
+
+                {/* 2. Katalog E-Book */}
+                <Link
+                  href="/buku"
+                  onClick={() => setIsProfileDrawerOpen(false)}
+                  className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3">
+                    <BookOpen className="h-4 w-4 text-neutral-500 group-hover:text-sky-600 transition-colors" />
+                    <span className="font-medium text-[13px]">Katalog E-Book</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                </Link>
+
+                {/* 3. Pinjaman Saya (Khusus Login) */}
+                {user && (
+                  <Link
+                    href="/pinjaman"
+                    onClick={() => setIsProfileDrawerOpen(false)}
+                    className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Layers className="h-4 w-4 text-neutral-500 group-hover:text-sky-600 transition-colors" />
+                      <span className="font-medium text-[13px]">Pinjaman Saya</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {activeLoansCount > 0 && (
+                        <span className="text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-full border border-sky-200 dark:border-sky-800">
+                          {activeLoansCount}
+                        </span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                  </Link>
+                )}
+
+                {/* 4. Bookmark (Khusus Login) */}
+                {user && (
+                  <Link
+                    href="/pinjaman?tab=bookmark"
+                    onClick={() => setIsProfileDrawerOpen(false)}
+                    className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Bookmark className="h-4 w-4 text-neutral-500 group-hover:text-amber-500 transition-colors" />
+                      <span className="font-medium text-[13px]">Bookmark</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {bookmarkCount > 0 && (
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                          {bookmarkCount}
+                        </span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                  </Link>
+                )}
+
+                {/* 5. Akun (Khusus Login) */}
+                {user && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileDrawerOpen(false)
+                      setIsAccountModalOpen(true)
+                    }}
+                    className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full cursor-pointer group active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <UserIcon className="h-4 w-4 text-neutral-500 group-hover:text-sky-600 transition-colors" />
+                      <span className="font-medium text-[13px]">Akun</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                )}
+
+                {/* 6. Ulasan Web */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDrawerOpen(false)
+                    setIsFeedbackModalOpen(true)
+                  }}
+                  className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full cursor-pointer group active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-4 w-4 text-neutral-500 group-hover:text-sky-600 transition-colors" />
+                    <span className="font-medium text-[13px]">Ulasan Web</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                </button>
+
+                {/* 7. Syarat dan Ketentuan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDrawerOpen(false)
+                    setIsTermsModalOpen(true)
+                  }}
+                  className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full cursor-pointer group active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 text-neutral-500 group-hover:text-sky-600 transition-colors" />
+                    <span className="font-medium text-[13px]">Syarat dan Ketentuan</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                </button>
+
+                {/* 8. Bantuan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDrawerOpen(false)
+                    setIsHelpModalOpen(true)
+                  }}
+                  className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full cursor-pointer group active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3">
+                    <HelpCircle className="h-4 w-4 text-neutral-500 group-hover:text-sky-600 transition-colors" />
+                    <span className="font-medium text-[13px]">Bantuan</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-600 group-hover:translate-x-0.5 transition-all" />
+                </button>
+
+                {/* 9. Admin / Super Admin Panel */}
+                {user && (user?.role === "admin" || user?.role === "super_admin") && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setIsProfileDrawerOpen(false)}
+                    className={cn(
+                      "flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium transition-colors w-full group active:scale-[0.99]",
+                      user?.role === "super_admin"
+                        ? "text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/50"
+                        : "text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      {user?.role === "super_admin" ? (
+                        <Crown className="h-4 w-4 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+                      ) : (
+                        <Shield className="h-4 w-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+                      )}
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-[13px]">
+                          {user?.role === "super_admin" ? "Panel Super Admin" : "Panel Admin RSJD"}
+                        </span>
+                        {user?.role === "super_admin" && (
+                          <Badge className="bg-purple-600 text-white text-[8px] px-1 py-0 h-3.5 font-bold uppercase tracking-wider">
+                            Utama
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className={cn(
+                      "h-4 w-4 group-hover:translate-x-0.5 transition-all",
+                      user?.role === "super_admin" ? "text-purple-400" : "text-indigo-400"
+                    )} />
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile Footer Logout Button (Khusus Login) */}
+            {user && (
+              <div className="p-4 border-t border-border/80 bg-neutral-50/50 dark:bg-neutral-900/40">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDrawerOpen(false)
+                    logout()
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 transition-colors cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4 text-rose-500" />
+                  <span>Keluar Akun</span>
+                </button>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
 
       </div>
 
@@ -1684,6 +2081,283 @@ export function SiteHeader() {
       <div className="md:hidden w-full px-3 sm:px-5 pb-2.5 pt-0.5">
         {renderSearchBox(true)}
       </div>
+
+      {/* MOBILE SMART SEARCH EXPANDED OVERLAY (KHUSUS TAMPILAN HP) */}
+      {isSearchOpen && (
+        <div
+          ref={mobileSearchPanelRef}
+          className="md:hidden absolute left-0 right-0 top-full h-[calc(100dvh-100%)] bg-white/98 dark:bg-neutral-950/98 border-t border-border z-50 overflow-y-auto overscroll-contain p-3.5 space-y-3.5 shadow-2xl animate-fade-in"
+        >
+          {/* Top Bar with Dismiss Button */}
+          <div className="flex items-center justify-between pb-2 border-b border-border/70">
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-sky-600" />
+              <span className="font-heading text-sm font-bold text-foreground">
+                Pusat Pencarian Buku
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSearchOpen(false)
+                mobileSearchInputRef.current?.blur()
+              }}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground bg-neutral-100 dark:bg-neutral-900 flex items-center gap-1 cursor-pointer"
+            >
+              <span>Tutup</span>
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Content if Typing */}
+          {isTyping ? (
+            <div className="space-y-4">
+              {isSearching ? (
+                <div className="py-8 text-center space-y-2">
+                  <Spinner className="h-5 w-5 mx-auto text-sky-600 animate-spin" />
+                  <p className="text-xs text-muted-foreground">Mencari koleksi buku...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Matching Books */}
+                  {filteredBooks.length > 0 && (
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Buku Terkait ({filteredBooks.length})
+                      </span>
+                      <div className="space-y-2">
+                        {filteredBooks.map((book) => (
+                          <div
+                            key={book.id}
+                            onClick={() => {
+                              saveRecentlyViewed(book)
+                              setIsSearchOpen(false)
+                              router.push(`/buku/${book.slug}`)
+                            }}
+                            className="flex items-center gap-3 p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 active:bg-sky-50"
+                          >
+                            <img
+                              src={book.coverUrl}
+                              alt={book.title}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-12 w-8.5 rounded-md object-cover shrink-0"
+                            />
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="text-xs font-bold text-foreground truncate">
+                                {book.title}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground truncate">
+                                {book.authorName} &bull; {book.categoryName}
+                              </span>
+                            </div>
+                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Matching Tags */}
+                  {filteredTags.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-border/60">
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Tag yang Cocok
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {filteredTags.map((tag) => (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={() => handleSelectTag(tag.slug, tag.name)}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200"
+                          >
+                            #{tag.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Matching Authors */}
+                  {filteredAuthors.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-border/60">
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Penulis yang Cocok
+                      </span>
+                      <div className="space-y-1.5">
+                        {filteredAuthors.map((author) => (
+                          <div
+                            key={author.id}
+                            onClick={() => handleSelectAuthor(author.name)}
+                            className="flex items-center gap-2.5 p-2 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800"
+                          >
+                            <img
+                              src={author.photoUrl}
+                              alt={author.name}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-8 w-8 rounded-full object-cover shrink-0"
+                            />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-bold text-foreground truncate">
+                                {author.name}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground truncate">
+                                {author.title}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Full Execute Button */}
+                  <div className="pt-2">
+                    <Button
+                      type="button"
+                      onClick={() => handleExecuteSearch(searchQuery)}
+                      className="w-full justify-between h-9 text-xs font-bold bg-sky-600 text-white rounded-xl shadow-xs"
+                    >
+                      <span>Cari &ldquo;{searchQuery}&rdquo;</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {/* Riwayat Pencarian */}
+              {searchHistory.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-semibold text-neutral-500">
+                    <span className="flex items-center gap-1.5 font-bold text-foreground">
+                      <History className="h-3.5 w-3.5 text-sky-600" />
+                      Riwayat Pencarian
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearAllHistory}
+                      className="text-[11px] text-muted-foreground hover:text-destructive font-medium"
+                    >
+                      Hapus Semua
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {searchHistory.map((item, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setSearchQuery(item)
+                          handleExecuteSearch(item)
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-neutral-100 dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-800"
+                      >
+                        <span>{item}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveHistoryItem(item, e)}
+                          className="text-neutral-400 hover:text-destructive p-0.5"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Topik Klinis Populer */}
+              {quickKeywords.length > 0 && (
+                <div className="space-y-1.5 pt-2 border-t border-border/60">
+                  <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    Topik Populer
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickKeywords.slice(0, 5).map((kw, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery(kw.query)
+                          handleExecuteSearch(kw.query)
+                        }}
+                        className="px-2 py-0.5 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-800"
+                      >
+                        #{kw.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tag Populer */}
+              <div className="space-y-1.5 pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <TagIcon className="h-3.5 w-3.5 text-sky-600" />
+                    Tag Populer
+                  </span>
+                  {allAvailableTags.length > 6 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTags(!showAllTags)}
+                      className="text-[11px] font-semibold text-sky-600 hover:text-sky-700 underline"
+                    >
+                      {showAllTags ? "Ringkas" : `Semua (${allAvailableTags.length})`}
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {(showAllTags ? allAvailableTags : allAvailableTags.slice(0, 6)).map((tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => handleSelectTag(tag.slug, tag.name)}
+                      className="px-2 py-0.5 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-800"
+                    >
+                      #{tag.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Penulis Populer */}
+              <div className="space-y-1.5 pt-2 border-t border-border/60">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Award className="h-3.5 w-3.5 text-sky-600" />
+                  Penulis Terdaftar
+                </span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {dynamicAuthors.slice(0, 4).map((author) => (
+                    <div
+                      key={author.id}
+                      onClick={() => handleSelectAuthor(author.name)}
+                      className="flex items-center gap-2 p-1.5 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 cursor-pointer active:scale-98"
+                    >
+                      <img
+                        src={author.photoUrl}
+                        alt={author.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-6 w-6 rounded-full object-cover shrink-0"
+                      />
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-[11px] font-bold text-foreground truncate">
+                          {author.name}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
 
 

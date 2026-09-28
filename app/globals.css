@@ -122,19 +122,26 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground;
-    }
+    -webkit-overflow-scrolling: touch;
+  }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading), sans-serif;
-    }
+  }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
-    }
+  }
+  a, button, [role="button"], input, select, textarea {
+    touch-action: manipulation;
+  }
   html {
     @apply font-sans;
-    }
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @keyframes fadeIn {
@@ -227,4 +234,16 @@
 .no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Mobile & Long-List Performance Boosters */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 380px;
+}
+
+.gpu-composited {
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
