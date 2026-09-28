@@ -33,12 +33,24 @@ import {
   ChevronsRight,
   Compass,
   Bookmark,
+  MoreVertical,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+} from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import type { BookItem } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
@@ -281,7 +293,7 @@ export default function BookReaderPage() {
 
         const pixelRatio = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1
         const baseViewport = page.getViewport({ scale: 1.0 })
-        const targetWidth = 650
+        const targetWidth = Math.max(800, typeof window !== "undefined" ? Math.min(window.innerWidth, 1200) : 800)
         const scale = Math.max(1.0, (targetWidth / baseViewport.width) * pixelRatio)
         const viewport = page.getViewport({ scale })
 
@@ -345,6 +357,8 @@ export default function BookReaderPage() {
   // Bookmarks (Markah Halaman)
   const [bookmarks, setBookmarks] = React.useState<number[]>([])
   const [notesDrawerTab, setNotesDrawerTab] = React.useState<"notes" | "bookmarks">("notes")
+  const [isDesktopReaderDropdownOpen, setIsDesktopReaderDropdownOpen] = React.useState(false)
+  const [isMobileReaderMenuOpen, setIsMobileReaderMenuOpen] = React.useState(false)
 
   // Load saved notes & bookmarks
   React.useEffect(() => {
@@ -828,6 +842,47 @@ export default function BookReaderPage() {
     }
   }, [totalPages])
 
+  const toggleFullscreen = React.useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const doc = document as any
+    const isCurrentlyFullscreen = Boolean(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement ||
+      (typeof window !== "undefined" &&
+        typeof screen !== "undefined" &&
+        window.innerWidth === screen.width &&
+        Math.abs(window.innerHeight - screen.height) <= 4)
+    )
+
+    if (!isCurrentlyFullscreen) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const docEl = document.documentElement as any
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {})
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen()
+      } else if (docEl.mozRequestFullScreen) {
+        docEl.mozRequestFullScreen()
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen()
+      }
+      setIsFullscreen(true)
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {})
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen()
+      } else if (doc.mozCancelFullScreen) {
+        doc.mozCancelFullScreen()
+      } else if (doc.msExitFullscreen) {
+        doc.msExitFullscreen()
+      }
+      setIsFullscreen(false)
+    }
+  }, [])
+
   // Sinkronisasi status fullscreen (baik via tombol UI, tombol keyboard F11, maupun tombol Escape)
   React.useEffect(() => {
     const checkFullscreenState = () => {
@@ -874,47 +929,7 @@ export default function BookReaderPage() {
       window.removeEventListener("resize", checkFullscreenState)
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [])
-
-  const toggleFullscreen = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const doc = document as any
-    const isCurrentlyFullscreen = Boolean(
-      doc.fullscreenElement ||
-      doc.webkitFullscreenElement ||
-      doc.mozFullScreenElement ||
-      doc.msFullscreenElement ||
-      (typeof window !== "undefined" &&
-        typeof screen !== "undefined" &&
-        window.innerWidth === screen.width &&
-        Math.abs(window.innerHeight - screen.height) <= 4)
-    )
-
-    if (!isCurrentlyFullscreen) {
-      const docEl = document.documentElement as any
-      if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch(() => {})
-      } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen()
-      } else if (docEl.mozRequestFullScreen) {
-        docEl.mozRequestFullScreen()
-      } else if (docEl.msRequestFullscreen) {
-        docEl.msRequestFullscreen()
-      }
-      setIsFullscreen(true)
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {})
-      } else if (doc.webkitExitFullscreen) {
-        doc.webkitExitFullscreen()
-      } else if (doc.mozCancelFullScreen) {
-        doc.mozCancelFullScreen()
-      } else if (doc.msExitFullscreen) {
-        doc.msExitFullscreen()
-      }
-      setIsFullscreen(false)
-    }
-  }
+  }, [toggleFullscreen])
 
   const handlePageJump = (e: React.FormEvent) => {
     e.preventDefault()
@@ -992,7 +1007,7 @@ export default function BookReaderPage() {
         <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-neutral-700/50 to-transparent pointer-events-none" />
 
         {/* LEFT: BOOK INFO & NAV */}
-        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 z-10 flex-1 max-w-[62%] sm:max-w-[45%] md:max-w-[32%]">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 z-10 flex-1 max-w-[60%] sm:max-w-[42%] lg:max-w-[32%]">
           <Link href={`/buku/${book.slug}`}>
             <Button
               variant="ghost"
@@ -1027,239 +1042,243 @@ export default function BookReaderPage() {
           </div>
         </div>
 
-        {/* CENTER: UNIFIED READER DYNAMIC ISLAND (Desktop only, saves space on mobile) */}
-        <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center rounded-2xl bg-neutral-900/90 backdrop-blur-md border border-neutral-800/90 shadow-sm p-1 z-10 pointer-events-auto">
-          {/* 1. Sesi Baca (Active reading timer) */}
+        {/* RIGHT: JAM ("sisakan jam nya saja") & TITIK 3 (DROPDOWN / SIDEBAR) */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 z-10 shrink-0">
+          {/* Jam Real-time Satu-Satunya Info di Header Sesuai Permintaan */}
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-emerald-400 cursor-default hover:text-emerald-300 transition-colors"
-            title={`Durasi membaca aktif sesi ini: ${Math.floor(readingSeconds / 60)} menit`}
-          >
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-            <span className="text-[10px] font-sans uppercase tracking-wider text-emerald-500/80 font-bold hidden xl:inline">
-              Baca
-            </span>
-            <span className="font-semibold">{formatReadingTime(readingSeconds)}</span>
-          </div>
-
-          {/* Divider */}
-          <div className="h-3.5 w-[1px] bg-neutral-800" />
-
-          {/* 2. Jam Sekarang (Live Real-Time Clock) */}
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-neutral-300 cursor-default hover:text-white transition-colors"
-            title={`Waktu lokal saat ini: ${currentDateStr}`}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-neutral-900/90 border border-neutral-800 text-xs font-mono text-neutral-200 shadow-xs cursor-default"
+            title={`Waktu lokal saat ini: ${currentDateStr} | Sisa pinjam: ${formatCountdown(remainingSeconds)}`}
           >
             <Watch className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-            <span className="text-[10px] font-sans uppercase tracking-wider text-neutral-500 font-bold hidden xl:inline">
-              Waktu
+            <span className="font-semibold text-[11px] sm:text-xs">
+              {currentTimeStr || "08:50 WITA"}
             </span>
-            <span className="font-semibold text-neutral-200">{currentTimeStr || "08:50 WITA"}</span>
           </div>
 
-          {/* Divider */}
-          <div className="h-3.5 w-[1px] bg-neutral-800" />
+          {/* 1. Desktop & Tablet: Titik 3 Dropdown Menu (sm:block) */}
+          <div className="hidden sm:block">
+            <DropdownMenu open={isDesktopReaderDropdownOpen} onOpenChange={setIsDesktopReaderDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8.5 w-8.5 rounded-xl text-neutral-300 hover:text-white bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800/90 transition-all cursor-pointer shadow-xs"
+                  title="Menu Opsi & Pengaturan Membaca"
+                  aria-label="Menu Titik Tiga"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-72 p-2.5 shadow-2xl rounded-2xl border border-neutral-800 bg-neutral-950/98 backdrop-blur-xl text-neutral-200 animate-fade-scale z-50 space-y-2"
+              >
+                {/* Info Sesi & Pinjaman Card */}
+                <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-neutral-800/80 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between text-neutral-400 text-[11px]">
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Sesi Baca Aktif</span>
+                    </span>
+                    <span className="font-mono font-semibold text-emerald-400">
+                      {formatReadingTime(readingSeconds)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-neutral-400 text-[11px]">
+                    <span className="flex items-center gap-1.5">
+                      <Hourglass className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Sisa Masa Pinjam</span>
+                    </span>
+                    <span className="font-mono font-semibold text-amber-400">
+                      {formatCountdown(remainingSeconds)}
+                    </span>
+                  </div>
+                </div>
 
-          {/* 3. Sisa Pinjam (Counting Down) */}
-          <div
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono transition-colors cursor-default",
-              remainingSeconds !== null && remainingSeconds <= 0
-                ? "text-rose-400 font-bold"
-                : remainingSeconds !== null && remainingSeconds < 7200
-                ? "text-rose-400 animate-pulse font-bold"
-                : remainingSeconds !== null && remainingSeconds < 86400
-                ? "text-amber-400 font-semibold"
-                : "text-sky-300 font-semibold"
-            )}
-            title={
-              activeLoanDueAt
-                ? `Batas masa pinjam: ${new Date(activeLoanDueAt).toLocaleDateString("id-ID", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })} WITA`
-                : "Menghitung sisa masa pinjam..."
-            }
-          >
-            <Hourglass className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-            <span className="text-[10px] font-sans uppercase tracking-wider opacity-60 font-bold hidden xl:inline">
-              Sisa
-            </span>
-            <span>{formatCountdown(remainingSeconds)}</span>
+                {/* Format Bacaan */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-semibold text-neutral-400 px-1">
+                    Format Dokumen
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-neutral-900/80 border border-neutral-800/80">
+                    <button
+                      type="button"
+                      disabled={!book.formats.pdf.available || book.formats.pdf.status === "rusak"}
+                      onClick={() => setSelectedFormat("pdf")}
+                      className={cn(
+                        "py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center",
+                        selectedFormat === "pdf"
+                          ? "bg-sky-600 text-white shadow-xs"
+                          : "text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      PDF {book.formats.pdf.status === "rusak" && "(Rusak)"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!book.formats.epub.available || book.formats.epub.status === "rusak"}
+                      onClick={() => setSelectedFormat("epub")}
+                      className={cn(
+                        "py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center",
+                        selectedFormat === "epub"
+                          ? "bg-sky-600 text-white shadow-xs"
+                          : "text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                      )}
+                    >
+                      EPUB {book.formats.epub.status === "rusak" && "(Rusak)"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tema Kertas Bacaan */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="text-[11px] font-semibold text-neutral-400 px-1">
+                    Tema Kertas
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-neutral-900/80 border border-neutral-800/80">
+                    <button
+                      type="button"
+                      onClick={() => setPaperTheme("white")}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        paperTheme === "white"
+                          ? "bg-white text-neutral-950 font-bold shadow-xs"
+                          : "text-neutral-400 hover:text-white"
+                      )}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-neutral-300 border border-neutral-400 shrink-0" />
+                      <span>Putih</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaperTheme("sepia")}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        paperTheme === "sepia"
+                          ? "bg-[#e8d5b5] text-[#3d2c25] font-bold shadow-xs"
+                          : "text-neutral-400 hover:text-white"
+                      )}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-[#d4bc94] shrink-0" />
+                      <span>Sepia</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaperTheme("dark")}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        paperTheme === "dark"
+                          ? "bg-neutral-800 text-white font-bold shadow-xs"
+                          : "text-neutral-400 hover:text-white"
+                      )}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-neutral-600 shrink-0" />
+                      <span>Malam</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="h-[1px] bg-neutral-800/80 my-1" />
+
+                {/* Markah & Catatan Action Buttons */}
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleBookmark(currentPage)
+                    }}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer",
+                      bookmarks.includes(currentPage)
+                        ? "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+                        : "text-neutral-300 hover:bg-neutral-900 hover:text-white"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Bookmark className={cn("h-4 w-4", bookmarks.includes(currentPage) ? "fill-amber-400 text-amber-400" : "text-neutral-400")} />
+                      <span>{bookmarks.includes(currentPage) ? `Hapus Markah (Hal ${currentPage})` : `Tandai Markah (Hal ${currentPage})`}</span>
+                    </div>
+                    {bookmarks.includes(currentPage) && (
+                      <span className="text-[10px] text-amber-400 font-bold">Aktif</span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsDesktopReaderDropdownOpen(false)
+                      setNotesDrawerTab("notes")
+                      setIsNotesDrawerOpen(true)
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-neutral-300 hover:bg-neutral-900 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Highlighter className="h-4 w-4 text-amber-400" />
+                      <span>Catatan & Kutipan</span>
+                    </div>
+                    {notes.length > 0 && (
+                      <span className="h-4 min-w-4 px-1.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold flex items-center justify-center">
+                        {notes.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                <div className="h-[1px] bg-neutral-800/80 my-1" />
+
+                {/* Zoom & Fullscreen Controls */}
+                <div className="flex items-center justify-between pt-1 px-1">
+                  <div className="flex items-center gap-1 bg-neutral-900 rounded-xl border border-neutral-800 p-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setZoomLevel((z) => Math.max(70, z - 15))}
+                      className="h-7 w-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
+                      title="Perkecil (Zoom Out)"
+                    >
+                      <ZoomOut className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="text-[11px] font-mono text-neutral-300 w-9 text-center font-semibold">
+                      {zoomLevel}%
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setZoomLevel((z) => Math.min(150, z + 15))}
+                      className="h-7 w-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
+                      title="Perbesar (Zoom In)"
+                    >
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleFullscreen}
+                    className="h-8 px-2.5 rounded-xl text-neutral-300 hover:text-white bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-semibold gap-1.5 cursor-pointer"
+                    title={isFullscreen ? "Keluar Layar Penuh" : "Mode Layar Penuh"}
+                  >
+                    {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                    <span>{isFullscreen ? "Kecil" : "Penuh"}</span>
+                  </Button>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
 
-        {/* RIGHT: FORMAT SELECTOR, THEMES, BOOKMARK, NOTES & TOOLS */}
-        <div className="flex items-center gap-1 sm:gap-2 z-10 shrink-0 ml-auto">
-          {/* Format Selector: desktop only */}
-          <div className="hidden sm:flex items-center bg-neutral-900/90 p-0.5 rounded-xl border border-neutral-800 text-[11px]">
+          {/* 2. Mobile HP: Titik 3 yang Membuka Sidebar Sheet (sm:hidden) */}
+          <div className="sm:hidden">
             <button
               type="button"
-              disabled={!book.formats.pdf.available || book.formats.pdf.status === "rusak"}
-              onClick={() => setSelectedFormat("pdf")}
-              className={cn(
-                "px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer",
-                selectedFormat === "pdf"
-                  ? "bg-sky-600 text-white shadow-xs"
-                  : "text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-              )}
+              onClick={() => setIsMobileReaderMenuOpen(true)}
+              className="h-8.5 w-8.5 rounded-xl text-neutral-300 hover:text-white bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800/90 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+              title="Menu Pengaturan Membaca"
+              aria-label="Pengaturan Membaca"
             >
-              PDF {book.formats.pdf.status === "rusak" && "(Rusak)"}
-            </button>
-            <button
-              type="button"
-              disabled={!book.formats.epub.available || book.formats.epub.status === "rusak"}
-              onClick={() => setSelectedFormat("epub")}
-              className={cn(
-                "px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer",
-                selectedFormat === "epub"
-                  ? "bg-sky-600 text-white shadow-xs"
-                  : "text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-              )}
-            >
-              EPUB {book.formats.epub.status === "rusak" && "(Rusak)"}
+              <MoreVertical className="h-4 w-4" />
             </button>
           </div>
-
-          {/* Theme Selector: Desktop */}
-          <div className="hidden md:flex items-center bg-neutral-900/90 p-0.5 rounded-xl border border-neutral-800 text-[11px]">
-            <button
-              type="button"
-              onClick={() => setPaperTheme("white")}
-              className={cn(
-                "flex items-center gap-1.5 px-2 py-1 rounded-lg font-semibold transition-all cursor-pointer",
-                paperTheme === "white"
-                  ? "bg-white text-neutral-950 font-bold shadow-xs"
-                  : "text-neutral-400 hover:text-white"
-              )}
-              title="Tema Kertas Putih"
-            >
-              <span className="w-2 h-2 rounded-full bg-neutral-300 border border-neutral-400 shrink-0" />
-              <span>Putih</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaperTheme("sepia")}
-              className={cn(
-                "flex items-center gap-1.5 px-2 py-1 rounded-lg font-semibold transition-all cursor-pointer",
-                paperTheme === "sepia"
-                  ? "bg-[#e8d5b5] text-[#3d2c25] font-bold shadow-xs"
-                  : "text-neutral-400 hover:text-white"
-              )}
-              title="Tema Kertas Sepia"
-            >
-              <span className="w-2 h-2 rounded-full bg-[#d4bc94] shrink-0" />
-              <span>Sepia</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setPaperTheme("dark")}
-              className={cn(
-                "flex items-center gap-1.5 px-2 py-1 rounded-lg font-semibold transition-all cursor-pointer",
-                paperTheme === "dark"
-                  ? "bg-neutral-800 text-white font-bold shadow-xs"
-                  : "text-neutral-400 hover:text-white"
-              )}
-              title="Tema Malam / Gelap"
-            >
-              <span className="w-2 h-2 rounded-full bg-neutral-600 shrink-0" />
-              <span>Malam</span>
-            </button>
-          </div>
-
-          {/* Mobile Quick Theme Cycle Button */}
-          <button
-            type="button"
-            onClick={() => {
-              if (paperTheme === "white") setPaperTheme("sepia")
-              else if (paperTheme === "sepia") setPaperTheme("dark")
-              else setPaperTheme("white")
-            }}
-            className="md:hidden h-8 w-8 rounded-xl bg-neutral-900/90 border border-neutral-800 flex items-center justify-center text-neutral-300 hover:text-white cursor-pointer"
-            title={`Ganti tema kertas (Saat ini: ${paperTheme})`}
-          >
-            <Palette className="h-3.5 w-3.5 text-neutral-400" />
-          </button>
-
-          {/* Bookmark Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => toggleBookmark(currentPage)}
-            className={cn(
-              "h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl gap-1.5 text-xs font-semibold border transition-all cursor-pointer",
-              bookmarks.includes(currentPage)
-                ? "bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25"
-                : "bg-neutral-900/90 border-neutral-800 text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800"
-            )}
-            title={bookmarks.includes(currentPage) ? `Hapus markah di hal ${currentPage}` : `Tandai markah hal ${currentPage}`}
-          >
-            <Bookmark className={cn("h-3.5 w-3.5", bookmarks.includes(currentPage) && "fill-amber-400 text-amber-400")} />
-            <span className="hidden xl:inline">{bookmarks.includes(currentPage) ? "Ditandai" : "Markah"}</span>
-          </Button>
-
-          {/* Notes Drawer Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setNotesDrawerTab("notes")
-              setIsNotesDrawerOpen(true)
-            }}
-            className="h-8 sm:h-8.5 px-2 sm:px-2.5 rounded-xl text-xs font-semibold gap-1.5 border-neutral-800 bg-neutral-900/90 text-neutral-300 hover:text-white hover:bg-neutral-800 shadow-xs cursor-pointer"
-            title="Buka Catatan & Kutipan Saya"
-          >
-            <Highlighter className="h-3.5 w-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Catatan</span>
-            {notes.length > 0 && (
-              <span className="h-4 min-w-4 px-1 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold flex items-center justify-center">
-                {notes.length}
-              </span>
-            )}
-          </Button>
-
-          {/* Zoom Controls: desktop only */}
-          <div className="hidden sm:flex items-center bg-neutral-900/90 rounded-xl border border-neutral-800 p-0.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setZoomLevel((z) => Math.max(70, z - 15))}
-              className="h-7 w-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
-              title="Perkecil (Zoom Out)"
-            >
-              <ZoomOut className="h-3.5 w-3.5" />
-            </Button>
-            <span className="text-[11px] font-mono text-neutral-300 w-9 text-center font-semibold">
-              {zoomLevel}%
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setZoomLevel((z) => Math.min(150, z + 15))}
-              className="h-7 w-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
-              title="Perbesar (Zoom In)"
-            >
-              <ZoomIn className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          {/* Fullscreen Button: desktop only */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleFullscreen}
-            className="hidden sm:flex h-8.5 w-8.5 rounded-xl text-neutral-400 hover:text-white bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800 cursor-pointer"
-            title={isFullscreen ? "Keluar Layar Penuh (F11)" : "Mode Layar Penuh (F11)"}
-          >
-            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
         </div>
       </header>
 
@@ -1268,16 +1287,16 @@ export default function BookReaderPage() {
         ref={viewportRef}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        className="flex-1 relative overflow-y-auto overflow-x-hidden p-3 sm:p-6 md:p-8 flex items-start justify-center bg-neutral-950 sm:bg-neutral-900/90"
+        className="flex-1 relative overflow-y-auto overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8 flex items-start justify-center bg-neutral-950 sm:bg-neutral-900/90"
       >
         
-        {/* Floating Side Page Turn Buttons (Left & Right - Desktop only) */}
+        {/* Floating Side Page Turn Buttons (Left & Right - Widescreen desktop only where ample gutters exist) */}
         <button
           type="button"
           disabled={currentPage <= 1}
           onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
           className={cn(
-            "hidden md:flex fixed left-5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 rounded-full items-center justify-center transition-all shadow-xl",
+            "hidden xl:flex fixed left-5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 rounded-full items-center justify-center transition-all shadow-xl",
             "bg-neutral-950/80 hover:bg-neutral-900 text-neutral-300 hover:text-white border border-neutral-800/90 backdrop-blur-md",
             "disabled:opacity-0 disabled:pointer-events-none hover:scale-110 active:scale-95 cursor-pointer"
           )}
@@ -1291,7 +1310,7 @@ export default function BookReaderPage() {
           disabled={currentPage >= totalPages}
           onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
           className={cn(
-            "hidden md:flex fixed right-5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 rounded-full items-center justify-center transition-all shadow-xl",
+            "hidden xl:flex fixed right-5 top-1/2 -translate-y-1/2 z-25 w-11 h-11 rounded-full items-center justify-center transition-all shadow-xl",
             "bg-neutral-950/80 hover:bg-neutral-900 text-neutral-300 hover:text-white border border-neutral-800/90 backdrop-blur-md",
             "disabled:opacity-0 disabled:pointer-events-none hover:scale-110 active:scale-95 cursor-pointer"
           )}
@@ -1300,12 +1319,12 @@ export default function BookReaderPage() {
           <ChevronRight className="w-5 h-5" />
         </button>
 
-        {/* The Page Canvas/Container with Paper Theme (Edge-to-edge on mobile) */}
+        {/* The Page Canvas/Container with Paper Theme (Fluid on tablet & mobile) */}
         <div
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: "top center" }}
           className={cn(
-            "relative w-full max-w-3xl min-h-fit sm:min-h-[700px] rounded-none sm:rounded-2xl shadow-none sm:shadow-2xl transition-all duration-200 overflow-hidden flex flex-col justify-between border-0 sm:border",
-            "p-4 sm:p-8 md:p-12",
+            "relative w-full max-w-4xl min-h-fit sm:min-h-[700px] rounded-none sm:rounded-2xl shadow-none sm:shadow-2xl transition-all duration-200 overflow-hidden flex flex-col justify-between border-0 sm:border",
+            "p-3 sm:p-6 md:p-8 lg:p-12",
             paperTheme === "white" && "bg-white text-neutral-900 sm:border-neutral-200",
             paperTheme === "sepia" && "bg-[#fbf0d9] text-[#43302b] sm:border-[#e8d5b5]",
             paperTheme === "dark" && "bg-neutral-950 text-neutral-200 sm:border-neutral-800"
@@ -1824,6 +1843,234 @@ export default function BookReaderPage() {
           </aside>
         </div>
       )}
+
+      {/* MOBILE READER SIDEBAR SHEET (Khusus HP sesuai permintaan user) */}
+      <Sheet open={isMobileReaderMenuOpen} onOpenChange={setIsMobileReaderMenuOpen}>
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="w-[300px] p-0 flex flex-col bg-neutral-950 border-l border-neutral-800 text-neutral-100 z-50 overflow-hidden"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menu Pengaturan Pembaca</SheetTitle>
+          </SheetHeader>
+
+          {/* Header Sidebar Mobile */}
+          <div className="p-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/50">
+            <div className="flex items-center gap-2">
+              <Sliders className="h-4 w-4 text-sky-400" />
+              <span className="font-heading font-bold text-sm text-white">Menu Pembaca</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMobileReaderMenuOpen(false)}
+              className="h-8 w-8 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              title="Tutup Menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Konten Menu Sidebar Mobile */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Info Kartu Bacaan */}
+            <div className="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-400 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Sesi Baca</span>
+                </span>
+                <span className="font-mono font-bold text-emerald-400">
+                  {formatReadingTime(readingSeconds)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-400 flex items-center gap-1.5">
+                  <Hourglass className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Sisa Pinjam</span>
+                </span>
+                <span className="font-mono font-bold text-amber-400">
+                  {formatCountdown(remainingSeconds)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-400 flex items-center gap-1.5">
+                  <Watch className="h-3.5 w-3.5 text-sky-400" />
+                  <span>Jam Sekarang</span>
+                </span>
+                <span className="font-mono font-bold text-neutral-200">
+                  {currentTimeStr || "08:50 WITA"}
+                </span>
+              </div>
+            </div>
+
+            {/* Format Dokumen */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                Format Dokumen
+              </span>
+              <div className="grid grid-cols-2 gap-2 p-1.5 rounded-xl bg-neutral-900 border border-neutral-800">
+                <button
+                  type="button"
+                  disabled={!book.formats.pdf.available || book.formats.pdf.status === "rusak"}
+                  onClick={() => setSelectedFormat("pdf")}
+                  className={cn(
+                    "py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-center",
+                    selectedFormat === "pdf"
+                      ? "bg-sky-600 text-white shadow-xs"
+                      : "text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  )}
+                >
+                  PDF {book.formats.pdf.status === "rusak" && "(Rusak)"}
+                </button>
+                <button
+                  type="button"
+                  disabled={!book.formats.epub.available || book.formats.epub.status === "rusak"}
+                  onClick={() => setSelectedFormat("epub")}
+                  className={cn(
+                    "py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-center",
+                    selectedFormat === "epub"
+                      ? "bg-sky-600 text-white shadow-xs"
+                      : "text-neutral-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  )}
+                >
+                  EPUB {book.formats.epub.status === "rusak" && "(Rusak)"}
+                </button>
+              </div>
+            </div>
+
+            {/* Tema Kertas */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
+                Tema Kertas
+              </span>
+              <div className="grid grid-cols-3 gap-1.5 p-1.5 rounded-xl bg-neutral-900 border border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setPaperTheme("white")}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                    paperTheme === "white"
+                      ? "bg-white text-neutral-950 font-bold shadow-xs"
+                      : "text-neutral-400 hover:text-white"
+                  )}
+                >
+                  <span className="w-3 h-3 rounded-full bg-neutral-300 border border-neutral-400 shrink-0" />
+                  <span>Putih</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaperTheme("sepia")}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                    paperTheme === "sepia"
+                      ? "bg-[#e8d5b5] text-[#3d2c25] font-bold shadow-xs"
+                      : "text-neutral-400 hover:text-white"
+                  )}
+                >
+                  <span className="w-3 h-3 rounded-full bg-[#d4bc94] shrink-0" />
+                  <span>Sepia</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaperTheme("dark")}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                    paperTheme === "dark"
+                      ? "bg-neutral-800 text-white font-bold shadow-xs"
+                      : "text-neutral-400 hover:text-white"
+                  )}
+                >
+                  <span className="w-3 h-3 rounded-full bg-neutral-600 shrink-0" />
+                  <span>Malam</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Aksi Cepat Markah & Catatan */}
+            <div className="space-y-2 pt-2 border-t border-neutral-800/80">
+              <button
+                type="button"
+                onClick={() => {
+                  toggleBookmark(currentPage)
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between p-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer border",
+                  bookmarks.includes(currentPage)
+                    ? "bg-amber-500/15 border-amber-500/40 text-amber-300"
+                    : "bg-neutral-900 border-neutral-800 text-neutral-200 hover:bg-neutral-850"
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Bookmark className={cn("h-4 w-4", bookmarks.includes(currentPage) ? "fill-amber-400 text-amber-400" : "text-neutral-400")} />
+                  <span>{bookmarks.includes(currentPage) ? `Hapus Markah Hal ${currentPage}` : `Tandai Markah Hal ${currentPage}`}</span>
+                </div>
+                {bookmarks.includes(currentPage) && (
+                  <span className="text-[10px] text-amber-400 font-bold">Ditandai</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileReaderMenuOpen(false)
+                  setNotesDrawerTab("notes")
+                  setIsNotesDrawerOpen(true)
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl text-xs font-semibold bg-neutral-900 border border-neutral-800 text-neutral-200 hover:bg-neutral-850 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Highlighter className="h-4 w-4 text-amber-400" />
+                  <span>Buka Catatan & Kutipan</span>
+                </div>
+                {notes.length > 0 && (
+                  <span className="h-4.5 min-w-4.5 px-1.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-bold flex items-center justify-center">
+                    {notes.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Kontrol Zoom di HP */}
+            <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
+              <span className="text-xs font-semibold text-neutral-300">Skala Tampilan</span>
+              <div className="flex items-center gap-1 bg-neutral-950 rounded-xl border border-neutral-800 p-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setZoomLevel((z) => Math.max(70, z - 15))}
+                  className="h-7 w-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
+                  title="Perkecil"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-[11px] font-mono text-neutral-200 w-9 text-center font-bold">
+                  {zoomLevel}%
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setZoomLevel((z) => Math.min(150, z + 15))}
+                  className="h-7 w-7 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 cursor-pointer"
+                  title="Perbesar"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Tombol Fullscreen di HP */}
+            <Button
+              variant="outline"
+              onClick={toggleFullscreen}
+              className="w-full text-xs font-semibold gap-2 border-neutral-800 bg-neutral-900 text-neutral-200 hover:text-white cursor-pointer py-2.5"
+            >
+              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              <span>{isFullscreen ? "Keluar Layar Penuh" : "Mode Layar Penuh (F11)"}</span>
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
     </div>
   )
