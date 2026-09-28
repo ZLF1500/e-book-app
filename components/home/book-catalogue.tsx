@@ -216,21 +216,29 @@ export function BookCatalogue() {
       }
     } catch {}
 
-    // Sinkronisasi data bookmark akun dari database
+    // Sinkronisasi data bookmark akun dari database (Single Source of Truth)
     fetch("/api/favorites")
       .then((r) => r.json())
       .then((d) => {
         if (d.success && Array.isArray(d.favorites)) {
-          setBookmarkedIds((prev) => {
-            const combined = Array.from(new Set([...prev, ...d.favorites]))
-            try {
-              localStorage.setItem(LOCAL_STORAGE_BOOKMARK_KEY, JSON.stringify(combined))
-            } catch {}
-            return combined
-          })
+          const stringFavs = d.favorites.map(String)
+          setBookmarkedIds(stringFavs)
+          try {
+            localStorage.setItem(LOCAL_STORAGE_BOOKMARK_KEY, JSON.stringify(stringFavs))
+            window.dispatchEvent(new Event("bookmarks-updated"))
+          } catch {}
         }
       })
       .catch(() => {})
+
+    const handleUpdate = () => {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_BOOKMARK_KEY)
+        if (saved) setBookmarkedIds(JSON.parse(saved))
+      } catch {}
+    }
+    window.addEventListener("bookmarks-updated", handleUpdate)
+    return () => window.removeEventListener("bookmarks-updated", handleUpdate)
   }, [])
 
   // Sync filters from URL if present

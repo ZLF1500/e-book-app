@@ -95,7 +95,7 @@ interface StoredLoan {
 function LoansContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const initialTab = searchParams.get("tab") === "bookmark" ? "bookmark" : "aktif"
+  const initialTab = searchParams.get("tab") === "bookmark" ? "bookmark" : (searchParams.get("tab") === "riwayat" ? "riwayat" : "aktif")
 
   const [activeTab, setActiveTab] = React.useState<"aktif" | "riwayat" | "bookmark">(initialTab)
   const [loans, setLoans] = React.useState<StoredLoan[]>([])
@@ -111,6 +111,66 @@ function LoansContent() {
   const [isKtaModalOpen, setIsKtaModalOpen] = React.useState(false)
   const [isAccountBiodataOpen, setIsAccountBiodataOpen] = React.useState(false)
   const [expandedBookIds, setExpandedBookIds] = React.useState<Record<string, boolean>>({})
+
+  // Sinkronisasi tab dengan URL searchParams secara real-time
+  React.useEffect(() => {
+    const tabParam = searchParams.get("tab")
+    if (tabParam === "bookmark") {
+      setActiveTab("bookmark")
+    } else if (tabParam === "riwayat") {
+      setActiveTab("riwayat")
+    } else if (tabParam === "aktif") {
+      setActiveTab("aktif")
+    }
+  }, [searchParams])
+
+  // Listener event instan untuk navigasi dari header (bahkan jika URL sudah di /pinjaman)
+  React.useEffect(() => {
+    const handleSwitchTab = (e: Event) => {
+      const customEvent = e as CustomEvent<string | { tab: string }>
+      const tab = typeof customEvent.detail === "object" && customEvent.detail ? customEvent.detail.tab : customEvent.detail
+      if (tab === "bookmark" || tab === "riwayat" || tab === "aktif") {
+        setActiveTab(tab)
+      }
+    }
+    window.addEventListener("switch-loan-tab", handleSwitchTab)
+    return () => window.removeEventListener("switch-loan-tab", handleSwitchTab)
+  }, [])
+
+  // Sinkronisasi bookmark dari basis data MariaDB resmi (Single Source of Truth)
+  React.useEffect(() => {
+    if (user?.id) {
+      fetch("/api/favorites")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.favorites)) {
+            setBookmarks(data.favorites)
+            try {
+              localStorage.setItem(LOCAL_STORAGE_BOOKMARK_KEY, JSON.stringify(data.favorites))
+              window.dispatchEvent(new Event("bookmarks-updated"))
+            } catch {}
+          }
+        })
+        .catch(() => {})
+    }
+  }, [user?.id])
+
+  // Listener sinkronisasi bookmark antar komponen
+  React.useEffect(() => {
+    const handleBookmarkUpdate = () => {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_BOOKMARK_KEY)
+        if (saved) setBookmarks(JSON.parse(saved))
+      } catch {}
+    }
+    window.addEventListener("bookmarks-updated", handleBookmarkUpdate)
+    return () => window.removeEventListener("bookmarks-updated", handleBookmarkUpdate)
+  }, [])
+
+  const handleTabChange = (newTab: "aktif" | "riwayat" | "bookmark") => {
+    setActiveTab(newTab)
+    router.replace(`/pinjaman?tab=${newTab}`, { scroll: false })
+  }
 
   const toggleExpand = (bookKey: string) => {
     setExpandedBookIds((prev) => ({
@@ -134,7 +194,7 @@ function LoansContent() {
       fetch("/api/favorites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookId: stringId, action: "toggle" }),
+        body: JSON.stringify({ bookId: stringId, action: "remove" }),
       }).catch(() => {})
       toast.success(`"${bookTitle}" dihapus dari bookmark`)
     } catch {}
@@ -432,7 +492,10 @@ function LoansContent() {
     })
   }, [userLoans, activeLoans, nowTime])
 
-  const bookmarkedBooks = catalogBooks.filter((b) => bookmarks.includes(b.id) || bookmarks.includes(b.slug))
+  const bookmarkedBooks = React.useMemo(() => {
+    const bookmarkSet = new Set(bookmarks.map(String))
+    return catalogBooks.filter((b) => bookmarkSet.has(String(b.id)) || (b.slug && bookmarkSet.has(b.slug)))
+  }, [catalogBooks, bookmarks])
 
   // Calculate days remaining helper
   const getRemainingTimeText = (dueAtIso: string) => {
@@ -636,7 +699,7 @@ function LoansContent() {
         <div className="w-full grid grid-cols-3 sm:inline-flex sm:w-auto rounded-2xl bg-muted p-1 text-xs font-semibold text-muted-foreground mb-8">
           <button
             type="button"
-            onClick={() => setActiveTab("aktif")}
+            onClick={() => handleTabChange("aktif")}
             className={cn(
               "px-2 sm:px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer text-center",
               activeTab === "aktif"
@@ -649,7 +712,7 @@ function LoansContent() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("riwayat")}
+            onClick={() => handleTabChange("riwayat")}
             className={cn(
               "px-2 sm:px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer text-center",
               activeTab === "riwayat"
@@ -662,7 +725,7 @@ function LoansContent() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("bookmark")}
+            onClick={() => handleTabChange("bookmark")}
             className={cn(
               "px-2 sm:px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer text-center",
               activeTab === "bookmark"
@@ -671,7 +734,7 @@ function LoansContent() {
             )}
           >
             <Bookmark className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-            <span><span className="sm:hidden">Bookmark</span><span className="hidden sm:inline">Bookmark Saya</span> ({bookmarkedBooks.length})</span>
+            <span><span className="sm:hidden">Bookmark</span><span className="hidden sm:inline">Bookmark Saya</span> ({catalogBooks.length > 0 ? bookmarkedBooks.length : bookmarks.length})</span>
           </button>
         </div>
 

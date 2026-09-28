@@ -152,13 +152,29 @@ export function SiteHeader() {
       try {
         const savedBookmarks = localStorage.getItem(LOCAL_STORAGE_BOOKMARK_KEY)
         if (savedBookmarks) {
-          setBookmarkCount(JSON.parse(savedBookmarks).length)
+          const list = JSON.parse(savedBookmarks)
+          if (Array.isArray(list)) {
+            setBookmarkCount(list.length)
+          }
         } else {
           setBookmarkCount(0)
         }
       } catch {
         setBookmarkCount(0)
       }
+
+      // Selalu sinkronkan dengan database MariaDB agar nilai badge 100% akurat dan tidak tercemar data sampah
+      fetch("/api/favorites")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.favorites)) {
+            setBookmarkCount(data.favorites.length)
+            try {
+              localStorage.setItem(LOCAL_STORAGE_BOOKMARK_KEY, JSON.stringify(data.favorites))
+            } catch {}
+          }
+        })
+        .catch(() => {})
     }
 
     const syncActiveLoansCount = () => {
@@ -207,6 +223,36 @@ export function SiteHeader() {
       window.removeEventListener("storage", syncActiveLoansCount)
     }
   }, [])
+
+  // Sinkronisasi data saat user session berubah
+  React.useEffect(() => {
+    if (user?.id) {
+      fetch("/api/favorites")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.favorites)) {
+            setBookmarkCount(data.favorites.length)
+            try {
+              localStorage.setItem(LOCAL_STORAGE_BOOKMARK_KEY, JSON.stringify(data.favorites))
+            } catch {}
+          }
+        })
+        .catch(() => {})
+
+      fetch("/api/loans")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.loans)) {
+            const now = Date.now()
+            const count = data.loans.filter(
+              (l: any) => l.status === "aktif" && new Date(l.dueAt).getTime() > now
+            ).length
+            setActiveLoansCount(count)
+          }
+        })
+        .catch(() => {})
+    }
+  }, [user?.id])
 
   // Tutup semua panel saat berpindah halaman rute
   React.useEffect(() => {
@@ -1301,6 +1347,11 @@ export function SiteHeader() {
           {/* 2. Akses Pinjaman Saya (Dengan Indikator :active & Ping Jumlah Pinjaman Aktif) */}
           <Link
             href="/pinjaman"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("switch-loan-tab", { detail: "aktif" }))
+              }
+            }}
             className={cn(
               "relative h-9 w-9 sm:w-auto px-0 sm:px-2.5 lg:px-3 text-xs sm:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0",
               isPinjamanActive
@@ -1337,7 +1388,7 @@ export function SiteHeader() {
 
           {!user ? (
             <div className="flex items-center gap-1 sm:gap-1.5">
-              <Link href="/masuk">
+              <Link href="/masuk" className="hidden sm:inline-flex">
                 <Button size="sm" className="h-8 sm:h-9 px-3 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-xs transition-all">
                   Masuk
                 </Button>
@@ -1521,6 +1572,11 @@ export function SiteHeader() {
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link
                         href="/pinjaman"
+                        onClick={() => {
+                          if (typeof window !== "undefined") {
+                            window.dispatchEvent(new CustomEvent("switch-loan-tab", { detail: "aktif" }))
+                          }
+                        }}
                         className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:text-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group"
                       >
                         <div className="flex items-center gap-2.5">
@@ -1535,6 +1591,11 @@ export function SiteHeader() {
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link
                         href="/pinjaman?tab=bookmark"
+                        onClick={() => {
+                          if (typeof window !== "undefined") {
+                            window.dispatchEvent(new CustomEvent("switch-loan-tab", { detail: "bookmark" }))
+                          }
+                        }}
                         className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:text-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group"
                       >
                         <div className="flex items-center gap-2.5">
@@ -1912,7 +1973,12 @@ export function SiteHeader() {
                 {user && (
                   <Link
                     href="/pinjaman"
-                    onClick={() => setIsProfileDrawerOpen(false)}
+                    onClick={() => {
+                      setIsProfileDrawerOpen(false)
+                      if (typeof window !== "undefined") {
+                        window.dispatchEvent(new CustomEvent("switch-loan-tab", { detail: "aktif" }))
+                      }
+                    }}
                     className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-3">
@@ -1934,7 +2000,12 @@ export function SiteHeader() {
                 {user && (
                   <Link
                     href="/pinjaman?tab=bookmark"
-                    onClick={() => setIsProfileDrawerOpen(false)}
+                    onClick={() => {
+                      setIsProfileDrawerOpen(false)
+                      if (typeof window !== "undefined") {
+                        window.dispatchEvent(new CustomEvent("switch-loan-tab", { detail: "bookmark" }))
+                      }
+                    }}
                     className="flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 transition-colors w-full group active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-3">

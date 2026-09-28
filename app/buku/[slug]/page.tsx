@@ -135,17 +135,31 @@ export default function BookDetailPage() {
       }
     } catch {}
 
-    // Sinkronisasi data bookmark akun dari database
+    // Sinkronisasi data bookmark akun dari database (Single Source of Truth)
     fetch("/api/favorites")
       .then((r) => r.json())
       .then((d) => {
         if (d.success && Array.isArray(d.favorites)) {
-          if (d.favorites.includes(String(book.id))) {
-            setIsBookmarked(true)
-          }
+          const stringFavs = d.favorites.map(String)
+          setIsBookmarked(stringFavs.includes(String(book.id)))
+          try {
+            localStorage.setItem(LOCAL_STORAGE_BOOKMARK_KEY, JSON.stringify(stringFavs))
+          } catch {}
         }
       })
       .catch(() => {})
+
+    const handleBookmarkUpdate = () => {
+      try {
+        const saved = localStorage.getItem(LOCAL_STORAGE_BOOKMARK_KEY)
+        if (saved) {
+          const list: string[] = JSON.parse(saved)
+          setIsBookmarked(list.includes(String(book.id)))
+        }
+      } catch {}
+    }
+    window.addEventListener("bookmarks-updated", handleBookmarkUpdate)
+    return () => window.removeEventListener("bookmarks-updated", handleBookmarkUpdate)
   }, [book?.id])
 
   const toggleBookmark = () => {

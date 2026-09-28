@@ -190,16 +190,24 @@ export function RecentlyViewedSection() {
       setIsGuestModalOpen(true)
       return
     }
+    const currentId = String(bookId)
     let updated: string[]
-    if (bookmarkedIds.includes(bookId)) {
-      updated = bookmarkedIds.filter((id) => id !== bookId)
+    if (bookmarkedIds.includes(currentId)) {
+      updated = bookmarkedIds.filter((id) => id !== currentId)
     } else {
-      updated = [...bookmarkedIds, bookId]
+      updated = [...bookmarkedIds, currentId]
     }
     setBookmarkedIds(updated)
     try {
       localStorage.setItem(LOCAL_STORAGE_BOOKMARK_KEY, JSON.stringify(updated))
       window.dispatchEvent(new Event("bookmarks-updated"))
+
+      // Kirim pembaruan ke tabel favorites MariaDB
+      fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId: currentId, action: "toggle" }),
+      }).catch(() => {})
     } catch {}
   }
 
