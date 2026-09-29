@@ -89,9 +89,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "ID buku atau slug wajib disertakan." }, { status: 400 })
     }
 
-    // 1. Cari buku berdasarkan ID angka atau slug
+    // 1. Cari buku berdasarkan ID angka (bisa berawalan 'b'), slug, atau judul
     let targetBookId: number | null = null
-    const parsedId = parseInt(String(bookId), 10)
+    const rawIdStr = String(bookId).trim()
+    const cleanNumericStr = rawIdStr.replace(/^b/i, "")
+    const parsedId = parseInt(cleanNumericStr, 10)
 
     if (!isNaN(parsedId) && parsedId > 0) {
       const bookById = await queryOne<{ id: number; title: string }>(
@@ -103,10 +105,18 @@ export async function POST(req: Request) {
 
     if (!targetBookId) {
       const bookBySlug = await queryOne<{ id: number; title: string }>(
-        "SELECT id, title FROM books WHERE slug = ? LIMIT 1",
-        [String(bookId).trim()]
+        "SELECT id, title FROM books WHERE slug = ? OR slug = ? LIMIT 1",
+        [rawIdStr, cleanNumericStr]
       )
       if (bookBySlug) targetBookId = bookBySlug.id
+    }
+
+    if (!targetBookId) {
+      const bookByTitle = await queryOne<{ id: number; title: string }>(
+        "SELECT id, title FROM books WHERE title = ? LIMIT 1",
+        [rawIdStr]
+      )
+      if (bookByTitle) targetBookId = bookByTitle.id
     }
 
     if (!targetBookId) {

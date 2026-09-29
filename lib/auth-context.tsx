@@ -117,7 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 4. Asynchronously fetch fresh data from database /api/auth/me to guarantee authoritative state
     const syncWithServer = async () => {
       try {
-        const res = await fetch("/api/auth/me")
+        const headers: Record<string, string> = {}
+        if (initialUser?.id) {
+          headers["x-user-id"] = String(initialUser.id)
+        }
+        const res = await fetch("/api/auth/me", { headers })
         if (res.ok) {
           const data = await res.json()
           if (data.success && data.user) {

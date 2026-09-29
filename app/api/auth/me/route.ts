@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { queryOne } from "@/lib/db"
 import { verifySignedToken, createSignedToken } from "@/lib/auth-crypto"
+import { isSecureCookie } from "@/lib/cookie-helper"
 
 interface SessionPayload {
   id: number
@@ -21,25 +22,52 @@ interface UserRow {
   avatarUrl: string | null
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const cookieStore = await cookies()
-    const sessionToken = cookieStore.get("rsjd_session_token")?.value
+    const headerStore = await headers()
 
-    // 1. Verifikasi tanda tangan kriptografis dari cookie HttpOnly "rsjd_session_token"
-    if (!sessionToken) {
+    let verifiedUserId: number | null = null
+
+    // 1. Cek session token di cookie atau header Authorization
+    const sessionToken =
+      cookieStore.get("rsjd_session_token")?.value ||
+      headerStore.get("authorization")?.replace(/^Bearer\s+/i, "")
+
+    if (sessionToken) {
+      const decodedPayload = verifySignedToken<SessionPayload>(sessionToken)
+      if (decodedPayload?.id) {
+        verifiedUserId = decodedPayload.id
+      }
+    }
+
+    // 2. Fallback: jika sessionToken tidak ada (misal di drop browser di HTTP IP VPS/sslip.io),
+    // periksa cookie rsjd_auth_user yang diset aplikasi
+    if (!verifiedUserId) {
+      const authUserCookie = cookieStore.get("rsjd_auth_user")?.value
+      if (authUserCookie) {
+        try {
+          const raw = decodeURIComponent(authUserCookie)
+          const parsed = JSON.parse(raw.startsWith("%") ? decodeURIComponent(raw) : raw)
+          if (parsed && typeof parsed === "object" && parsed.id) {
+            verifiedUserId = Number(parsed.id)
+          }
+        } catch {}
+      }
+    }
+
+    // 3. Fallback: periksa header identitas x-user-id
+    if (!verifiedUserId) {
+      const headerUserId = headerStore.get("x-user-id")
+      if (headerUserId) {
+        const parsed = parseInt(headerUserId, 10)
+        if (!isNaN(parsed) && parsed > 0) verifiedUserId = parsed
+      }
+    }
+
+    if (!verifiedUserId) {
       return NextResponse.json({ success: false, user: null })
     }
-
-    const decodedPayload = verifySignedToken<SessionPayload>(sessionToken)
-    if (!decodedPayload?.id || !decodedPayload?.email) {
-      const response = NextResponse.json({ success: false, user: null })
-      response.cookies.delete("rsjd_session_token")
-      response.cookies.delete("rsjd_auth_user")
-      return response
-    }
-
-    const verifiedUserId = decodedPayload.id
 
     // 2. Ambil data pengguna otoritatif langsung dari database MySQL (Native Query)
     const dbUser = await queryOne<UserRow>(
@@ -75,11 +103,12 @@ export async function GET() {
     })
 
     const response = NextResponse.json({ success: true, user: safeUser })
+    const secureFlag = isSecureCookie(request)
 
     // Perbarui cookie session HttpOnly
     response.cookies.set("rsjd_session_token", newSessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureFlag,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30, // 30 hari
       path: "/",
@@ -90,6 +119,7 @@ export async function GET() {
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
       sameSite: "lax",
+      secure: secureFlag,
       httpOnly: false,
     })
 

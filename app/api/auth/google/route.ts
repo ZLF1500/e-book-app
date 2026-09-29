@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
 import { getAppBaseUrl, getSafeRedirectUrl } from "@/lib/url-helper"
+import { isSecureCookie } from "@/lib/cookie-helper"
 
 export async function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const baseUrl = getAppBaseUrl(request)
-  const isHttps = baseUrl.startsWith("https://")
+  const isHttps = isSecureCookie(request)
 
   const { searchParams } = new URL(request.url)
   const returnTo = searchParams.get("redirect") || "/"
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
   // Set cookies untuk verifikasi CSRF dan pemulihan sesi callback
   response.cookies.set("rsjd_oauth_state", state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production" || isHttps,
+    secure: isHttps,
     sameSite: "lax",
     maxAge: 60 * 10, // 10 menit
     path: "/",
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
 
   response.cookies.set("rsjd_oauth_origin", baseUrl, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production" || isHttps,
+    secure: isHttps,
     sameSite: "lax",
     maxAge: 60 * 10,
     path: "/",
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
 
   response.cookies.set("rsjd_oauth_redirect_uri", redirectUri, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production" || isHttps,
+    secure: isHttps,
     sameSite: "lax",
     maxAge: 60 * 10,
     path: "/",

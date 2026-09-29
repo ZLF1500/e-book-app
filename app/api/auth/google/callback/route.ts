@@ -3,6 +3,7 @@ import https from "https"
 import { queryOne, execute } from "@/lib/db"
 import { createSignedToken } from "@/lib/auth-crypto"
 import { getAppBaseUrl, getSafeRedirectUrl, getActiveTunnelUrl } from "@/lib/url-helper"
+import { isSecureCookie } from "@/lib/cookie-helper"
 
 interface UserRow {
   id: number
@@ -331,10 +332,12 @@ export async function GET(request: Request) {
 
     const response = NextResponse.redirect(redirectUrl)
 
+    const secureFlag = isSecureCookie(request)
+
     // Sesi aman HttpOnly untuk autentikasi server-side
     response.cookies.set("rsjd_session_token", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" || isHttps,
+      secure: secureFlag,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: "/",
@@ -342,7 +345,7 @@ export async function GET(request: Request) {
 
     response.cookies.set("rsjd_auth_user", encodeURIComponent(userPayloadJson), {
       httpOnly: false, // Accessible by client auth-context
-      secure: process.env.NODE_ENV === "production" || isHttps,
+      secure: secureFlag,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30,
       path: "/",

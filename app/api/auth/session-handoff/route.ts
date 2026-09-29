@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { verifySignedToken } from "@/lib/auth-crypto"
+import { isSecureCookie } from "@/lib/cookie-helper"
 
 export async function POST(request: Request) {
   try {
@@ -18,8 +19,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const proto = request.headers.get("x-forwarded-proto") || ""
-    const isHttps = proto === "https" || process.env.NODE_ENV === "production"
+    const isHttps = isSecureCookie(request)
 
     const response = NextResponse.json({ success: true })
 

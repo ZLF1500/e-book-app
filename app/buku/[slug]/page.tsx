@@ -338,9 +338,37 @@ export default function BookDetailPage() {
     }
   }
 
+  // Helper fleksibel untuk mencocokkan record peminjaman dengan buku yang sedang dibuka
+  const isLoanMatch = React.useCallback(
+    (l: any) => {
+      if (!book || !l) return false
+      const lBookId = String(l.bookId || "").replace(/^b/i, "")
+      const curBookId = String(book.id || "").replace(/^b/i, "")
+      const isIdMatch = Boolean(lBookId && curBookId && lBookId === curBookId)
+      const isSlugMatch = Boolean(book.slug && (l.bookSlug === book.slug || l.slug === book.slug))
+      const isTitleMatch = Boolean(
+        book.title && l.bookTitle && l.bookTitle.toLowerCase().trim() === book.title.toLowerCase().trim()
+      )
+
+      if (!isIdMatch && !isSlugMatch && !isTitleMatch) return false
+
+      const isStatusActive = l.status === "aktif" || l.status === "active"
+      if (!isStatusActive) return false
+
+      if (l.dueAt) {
+        const dueTime = new Date(l.dueAt).getTime()
+        if (!isNaN(dueTime) && dueTime <= Date.now()) {
+          return false
+        }
+      }
+      return true
+    },
+    [book]
+  )
+
   // Sinkronisasi status pinjaman aktif (dengan cache lokal instan + sinkronisasi server + event listener)
   React.useEffect(() => {
-    if (!book || isGuest || !user?.isVerified) {
+    if (!book || isGuest) {
       setActiveLoan(null)
       return
     }
@@ -353,26 +381,21 @@ export default function BookDetailPage() {
         const savedLoans = localStorage.getItem(LOCAL_STORAGE_LOANS_KEY)
         if (savedLoans) {
           const loansList = JSON.parse(savedLoans)
-          const localMatch = loansList.find(
-            (l: { bookId: string | number; bookSlug?: string; status: string; dueAt: string }) =>
-              (String(l.bookId) === String(book.id) || (l.bookSlug && l.bookSlug === book.slug)) &&
-              l.status === "aktif" &&
-              new Date(l.dueAt) > new Date()
-          )
-          if (localMatch && isMounted) {
-            setActiveLoan({
-              id: String(localMatch.id),
-              userId: localMatch.userId,
-              bookId: String(localMatch.bookId),
-              bookTitle: localMatch.bookTitle,
-              coverUrl: localMatch.coverUrl || localMatch.bookCover,
-              durationDays: localMatch.durationDays,
-              borrowedAt: localMatch.borrowedAt,
-              dueAt: localMatch.dueAt,
-              status: localMatch.status,
-            })
-          } else if (!localMatch && isMounted) {
-            setActiveLoan(null)
+          if (Array.isArray(loansList)) {
+            const localMatch = loansList.find(isLoanMatch)
+            if (localMatch && isMounted) {
+              setActiveLoan({
+                id: String(localMatch.id),
+                userId: localMatch.userId,
+                bookId: String(localMatch.bookId),
+                bookTitle: localMatch.bookTitle,
+                coverUrl: localMatch.coverUrl || localMatch.bookCover,
+                durationDays: localMatch.durationDays,
+                borrowedAt: localMatch.borrowedAt,
+                dueAt: localMatch.dueAt,
+                status: localMatch.status,
+              })
+            }
           }
         }
       } catch {}
@@ -384,12 +407,7 @@ export default function BookDetailPage() {
           .then((data) => {
             if (!isMounted) return
             if (data.success && Array.isArray(data.loans)) {
-              const match = data.loans.find(
-                (l: { bookId: number; bookSlug?: string; status: string; dueAt: string }) =>
-                  (String(l.bookId) === String(book.id) || (l.bookSlug && l.bookSlug === book.slug)) &&
-                  l.status === "aktif" &&
-                  new Date(l.dueAt) > new Date()
-              )
+              const match = data.loans.find(isLoanMatch)
               if (match) {
                 setActiveLoan({
                   id: String(match.id),
@@ -405,8 +423,6 @@ export default function BookDetailPage() {
               } else {
                 setActiveLoan(null)
               }
-            } else {
-              setActiveLoan(null)
             }
           })
           .catch(() => {})
@@ -421,7 +437,7 @@ export default function BookDetailPage() {
       isMounted = false
       window.removeEventListener("loans-updated", syncLoanState)
     }
-  }, [book?.id, book?.slug, user?.id, user?.isVerified, isGuest])
+  }, [book, user?.id, isGuest, isLoanMatch])
 
   const handleConfirmBorrow = async () => {
     if (!book) return
@@ -450,13 +466,20 @@ export default function BookDetailPage() {
       })
       const data = await res.json()
 
+      if (!res.ok || !data.success) {
+        toast.error(data.error || "Gagal memproses peminjaman pada server.")
+        return
+      }
+
+      toast.success(data.message || `Buku "${book.title}" berhasil dipinjam!`)
+
       const now = new Date()
       const dueDate = new Date(now.getTime() + borrowDuration * 24 * 60 * 60 * 1000)
       const newLoan: StoredLoanRecord = {
         id: data.loanId ? String(data.loanId) : "loan-" + Date.now(),
         userId: user?.id,
         userEmail: user?.email,
-        bookId: book.id,
+        bookId: String(book.id),
         bookTitle: book.title,
         coverUrl: book.coverUrl,
         durationDays: borrowDuration,
@@ -502,6 +525,7 @@ export default function BookDetailPage() {
       setTimeout(() => setBorrowSuccess(false), 4000)
     } catch (err) {
       console.error("Gagal mencatat peminjaman:", err)
+      toast.error("Terjadi kendala jaringan saat menghubungi server perpustakaan.")
     } finally {
       setIsBorrowing(false)
     }
@@ -1047,7 +1071,7 @@ export default function BookDetailPage() {
             */}
             <div className="pt-6 sm:pt-8 mt-6 border-t border-neutral-200 dark:border-neutral-800 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-3">
               {/* Primary Action Button (Baca Sekarang / Pinjam Buku) */}
-              {activeLoan && user?.isVerified ? (
+              {activeLoan ? (
                 <Link href={`/baca/${book.id}`} className="block w-full sm:flex-1">
                   <Button
                     size="lg"
@@ -1450,7 +1474,7 @@ export default function BookDetailPage() {
             <Bookmark className={cn("h-4 w-4", isBookmarked && "fill-sky-600 text-sky-600")} />
           </Button>
 
-          {activeLoan && user?.isVerified ? (
+          {activeLoan ? (
             <Link href={`/baca/${book.id}`}>
               <Button
                 size="sm"

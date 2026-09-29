@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth-crypto"
 import { verifyTurnstileToken } from "@/lib/turnstile"
 import { checkRateLimit } from "@/lib/rate-limit"
+import { isSecureCookie } from "@/lib/cookie-helper"
 
 interface UserRow {
   id: number
@@ -152,10 +153,12 @@ export async function POST(request: Request) {
       message: `Selamat datang kembali, ${user.name}!`,
     })
 
+    const secureFlag = isSecureCookie(request)
+
     // 1. Sesi aman HttpOnly untuk autentikasi server-side
     response.cookies.set("rsjd_session_token", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureFlag,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30, // 30 hari
       path: "/",
@@ -164,7 +167,7 @@ export async function POST(request: Request) {
     // 2. Cache profil untuk client render
     response.cookies.set("rsjd_auth_user", encodeURIComponent(userPayloadJson), {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure: secureFlag,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30,
       path: "/",

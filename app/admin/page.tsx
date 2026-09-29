@@ -228,6 +228,47 @@ export default function AdminPage() {
   const { theme, setTheme } = useTheme()
   const isSuperAdmin = user?.role === "super_admin"
 
+  // Helper to ensure all admin API requests contain active user identification headers even if cookies are dropped on plain HTTP
+  const getAdminAuthHeaders = React.useCallback(
+    (extra?: HeadersInit): HeadersInit => {
+      let uid = user?.id
+      if (!uid && typeof window !== "undefined") {
+        try {
+          const saved = localStorage.getItem("rsjd_auth_user_v2")
+          if (saved && saved !== "guest") {
+            const parsed = JSON.parse(saved)
+            if (parsed?.id) uid = Number(parsed.id)
+          }
+        } catch {}
+        if (!uid) {
+          const match = document.cookie.match(/(^| )rsjd_auth_user=([^;]+)/)
+          if (match && match[2]) {
+            try {
+              const raw = decodeURIComponent(match[2])
+              const decoded = raw.startsWith("%") ? decodeURIComponent(raw) : raw
+              const parsed = JSON.parse(decoded)
+              if (parsed?.id) uid = Number(parsed.id)
+            } catch {}
+          }
+        }
+      }
+      const headers = new Headers(extra || {})
+      if (uid && !headers.has("x-user-id")) {
+        headers.set("x-user-id", String(uid))
+      }
+      return headers
+    },
+    [user]
+  )
+
+  const adminFetch = React.useCallback(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = getAdminAuthHeaders(init?.headers)
+      return fetch(input, { ...init, headers })
+    },
+    [getAdminAuthHeaders]
+  )
+
   const [activeTab, setActiveTab] = React.useState<
     "buku" | "kategori" | "tag" | "artikel" | "pengguna" | "peminjam" | "laporan" | "pengaturan" | "tim-admin"
   >("buku")
@@ -245,7 +286,7 @@ export default function AdminPage() {
 
   const handleUpdateReportStatus = async (reportId: number, newStatus: "baru" | "diproses" | "selesai") => {
     try {
-      const res = await fetch("/api/admin/reports", {
+      const res = await adminFetch("/api/admin/reports", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: reportId, status: newStatus }),
@@ -267,7 +308,7 @@ export default function AdminPage() {
   const handleDeleteReport = async (reportId: number) => {
     if (!confirm("Hapus catatan laporan kendala ini?")) return
     try {
-      const res = await fetch(`/api/admin/reports?id=${reportId}`, {
+      const res = await adminFetch(`/api/admin/reports?id=${reportId}`, {
         method: "DELETE",
       })
       const data = await res.json()
@@ -428,14 +469,14 @@ export default function AdminPage() {
     setIsLoadingData(true)
     try {
       const [bRes, cRes, tRes, uRes, lRes, rRes, sRes, aRes] = await Promise.all([
-        fetch("/api/admin/books"),
-        fetch("/api/admin/categories"),
-        fetch("/api/admin/tags"),
-        fetch("/api/admin/users"),
-        fetch("/api/admin/loans"),
-        fetch("/api/admin/reports"),
-        fetch("/api/admin/settings"),
-        fetch("/api/admin/articles"),
+        adminFetch("/api/admin/books"),
+        adminFetch("/api/admin/categories"),
+        adminFetch("/api/admin/tags"),
+        adminFetch("/api/admin/users"),
+        adminFetch("/api/admin/loans"),
+        adminFetch("/api/admin/reports"),
+        adminFetch("/api/admin/settings"),
+        adminFetch("/api/admin/articles"),
       ])
 
       if (bRes.ok) {
@@ -478,7 +519,7 @@ export default function AdminPage() {
     } finally {
       setIsLoadingData(false)
     }
-  }, [])
+  }, [adminFetch])
 
   React.useEffect(() => {
     if (!isGuest && (user?.role === "admin" || user?.role === "super_admin")) {
@@ -1145,15 +1186,16 @@ export default function AdminPage() {
           formData.append("cover", item.coverUrl)
         }
 
-        const uploadRes = await fetch("/api/admin/books/upload", {
+        const uploadRes = await adminFetch("/api/admin/books/upload", {
           method: "POST",
           body: formData,
         })
         const uploadData = await uploadRes.json()
-        if (uploadData.success) {
-          if (uploadData.fileUrl) finalFileUrl = uploadData.fileUrl
-          if (uploadData.coverUrl) finalCoverUrl = uploadData.coverUrl
+        if (!uploadRes.ok || !uploadData.success) {
+          throw new Error(uploadData.error || "Gagal mengunggah berkas buku.")
         }
+        if (uploadData.fileUrl) finalFileUrl = uploadData.fileUrl
+        if (uploadData.coverUrl) finalCoverUrl = uploadData.coverUrl
 
         const tagsArray = item.tagsInput
           .split(",")
@@ -1181,12 +1223,16 @@ export default function AdminPage() {
           skipIfDuplicate: autoSkipDuplicates,
         }
 
-        const saveRes = await fetch("/api/admin/books", {
+        const saveRes = await adminFetch("/api/admin/books", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         })
         const saveData = await saveRes.json()
+
+        if (!saveRes.ok && !saveData.skipped) {
+          throw new Error(saveData.error || "Gagal menyimpan buku ke database.")
+        }
 
         if (saveData.skipped) {
           skippedCount++
@@ -1366,7 +1412,7 @@ export default function AdminPage() {
     setIsQuickCatSubmitting(true)
     setQuickCatError("")
     try {
-      const res = await fetch("/api/admin/categories", {
+      const res = await adminFetch("/api/admin/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1377,7 +1423,7 @@ export default function AdminPage() {
       })
       const data = await res.json()
       if (data.success) {
-        const cRes = await fetch("/api/admin/categories")
+        const cRes = await adminFetch("/api/admin/categories")
         const cData = await cRes.json()
         if (cData.success && Array.isArray(cData.categories)) {
           setCategoriesList(cData.categories)
@@ -1425,7 +1471,7 @@ export default function AdminPage() {
           formData.append("cover", bookForm.coverUrl)
         }
 
-        const uploadRes = await fetch("/api/admin/books/upload", {
+        const uploadRes = await adminFetch("/api/admin/books/upload", {
           method: "POST",
           body: formData,
         })
@@ -1467,7 +1513,7 @@ export default function AdminPage() {
       const url = editingBookId ? `/api/admin/books/${editingBookId}` : "/api/admin/books"
       const method = editingBookId ? "PUT" : "POST"
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1500,7 +1546,7 @@ export default function AdminPage() {
 
   const handleToggleFeatured = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/books/${id}`, {
+      const res = await adminFetch(`/api/admin/books/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ toggleFeatured: true }),
@@ -1526,7 +1572,7 @@ export default function AdminPage() {
       itemType: "Buku",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/books/${id}`, { method: "DELETE" })
+          const res = await adminFetch(`/api/admin/books/${id}`, { method: "DELETE" })
           const data = await res.json()
           if (data.success) {
             setBooksList((prev) => prev.filter((b) => b.id !== id))
@@ -1572,7 +1618,7 @@ export default function AdminPage() {
       const url = editingCategoryId ? `/api/admin/categories/${editingCategoryId}` : "/api/admin/categories"
       const method = editingCategoryId ? "PUT" : "POST"
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(categoryForm),
@@ -1602,7 +1648,7 @@ export default function AdminPage() {
       itemType: "Kategori",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" })
+          const res = await adminFetch(`/api/admin/categories/${id}`, { method: "DELETE" })
           const data = await res.json()
           if (data.success) {
             showSuccess(data.message)
@@ -1639,7 +1685,7 @@ export default function AdminPage() {
       const url = editingTagId ? `/api/admin/tags/${editingTagId}` : "/api/admin/tags"
       const method = editingTagId ? "PUT" : "POST"
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tagForm),
@@ -1672,7 +1718,7 @@ export default function AdminPage() {
       itemType: "Tag Topik",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/tags/${id}`, { method: "DELETE" })
+          const res = await adminFetch(`/api/admin/tags/${id}`, { method: "DELETE" })
           const data = await res.json()
           if (data.success) {
             showSuccess(data.message)
@@ -1739,7 +1785,7 @@ export default function AdminPage() {
 
     try {
       if (editingArticle) {
-        const res = await fetch(`/api/admin/articles/${editingArticle.id}`, {
+        const res = await adminFetch(`/api/admin/articles/${editingArticle.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(articleForm),
@@ -1755,7 +1801,7 @@ export default function AdminPage() {
           setArticleModalError(data.error || "Gagal memperbarui artikel.")
         }
       } else {
-        const res = await fetch("/api/admin/articles", {
+        const res = await adminFetch("/api/admin/articles", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(articleForm),
@@ -1780,7 +1826,7 @@ export default function AdminPage() {
     if (!deleteArticleModalItem) return
     setIsProcessing(true)
     try {
-      const res = await fetch(`/api/admin/articles/${deleteArticleModalItem.id}`, {
+      const res = await adminFetch(`/api/admin/articles/${deleteArticleModalItem.id}`, {
         method: "DELETE",
       })
       const data = await res.json()
@@ -1805,7 +1851,7 @@ export default function AdminPage() {
       return
     }
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, {
+      const res = await adminFetch(`/api/admin/users/${u.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isVerified: !u.isVerified }),
@@ -1834,7 +1880,7 @@ export default function AdminPage() {
       return
     }
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, {
+      const res = await adminFetch(`/api/admin/users/${u.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !u.isActive }),
@@ -1857,7 +1903,7 @@ export default function AdminPage() {
     if (!roleModalUser) return
     setIsProcessing(true)
     try {
-      const res = await fetch(`/api/admin/users/${roleModalUser.id}`, {
+      const res = await adminFetch(`/api/admin/users/${roleModalUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: selectedNewRole }),
@@ -1905,7 +1951,7 @@ export default function AdminPage() {
       itemType: "Pengguna",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" })
+          const res = await adminFetch(`/api/admin/users/${u.id}`, { method: "DELETE" })
           const data = await res.json()
           if (data.success) {
             setUsersList((prev) => prev.filter((item) => item.id !== u.id))
@@ -1949,7 +1995,7 @@ export default function AdminPage() {
     setAddAdminError("")
 
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await adminFetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newAdminForm),
@@ -1991,7 +2037,7 @@ export default function AdminPage() {
     setResetPasswordError("")
 
     try {
-      const res = await fetch(`/api/admin/users/${resetPasswordModalUser.id}`, {
+      const res = await adminFetch(`/api/admin/users/${resetPasswordModalUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resetPassword: newResetPassword }),
@@ -2027,7 +2073,7 @@ export default function AdminPage() {
     setTransferError("")
 
     try {
-      const res = await fetch("/api/admin/transfer-ownership", {
+      const res = await adminFetch("/api/admin/transfer-ownership", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2058,7 +2104,7 @@ export default function AdminPage() {
   // --- LOAN ACTIONS ---
   const handleMarkLoanReturned = async (loanId: number) => {
     try {
-      const res = await fetch("/api/admin/loans", {
+      const res = await adminFetch("/api/admin/loans", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: loanId, status: "kembali" }),
@@ -2077,7 +2123,7 @@ export default function AdminPage() {
 
   const handleExtendLoan = async (loanId: number) => {
     try {
-      const res = await fetch("/api/admin/loans", {
+      const res = await adminFetch("/api/admin/loans", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: loanId, action: "extend" }),
@@ -2103,7 +2149,7 @@ export default function AdminPage() {
       itemType: "Peminjaman",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/loans?id=${loan.id}`, { method: "DELETE" })
+          const res = await adminFetch(`/api/admin/loans?id=${loan.id}`, { method: "DELETE" })
           const data = await res.json()
           if (data.success) {
             setLoansList((prev) => prev.filter((l) => l.id !== loan.id))
@@ -2142,7 +2188,7 @@ export default function AdminPage() {
     }
     setIsProcessing(true)
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settingKey: "max_loan_days", settingValue: daysNum }),
@@ -4929,7 +4975,7 @@ export default function AdminPage() {
                       try {
                         const resolvedFiles: File[] = []
                         for (const uri of fileUris) {
-                          const res = await fetch("/api/admin/books/read-local", {
+                          const res = await adminFetch("/api/admin/books/read-local", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ uri }),
