@@ -57,10 +57,25 @@ export function TurnstileWidget({
     onExpireRef.current = onExpire
   })
 
+  // Fitur dapat dinonaktifkan via ENV atau jika Site Key sengaja dikosongkan / bernilai 'disabled'
+  const isTurnstileDisabled =
+    process.env.NEXT_PUBLIC_DISABLE_TURNSTILE === "true" ||
+    process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_ENABLED === "false" ||
+    !process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY ||
+    process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY === "disabled"
+
+  React.useEffect(() => {
+    if (isTurnstileDisabled) {
+      onVerifyRef.current("disabled-bypass")
+      setIsReady(true)
+    }
+  }, [isTurnstileDisabled])
+
   const envSiteKey =
     process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY || CLOUDFLARE_TEST_SITE_KEY
 
   React.useEffect(() => {
+    if (isTurnstileDisabled) return
     let isMounted = true
 
     // Deteksi apakah sedang diakses via localhost atau IP lokal (LAN)
@@ -182,7 +197,11 @@ export function TurnstileWidget({
         widgetIdRef.current = null
       }
     }
-  }, [envSiteKey, theme])
+  }, [envSiteKey, theme, isTurnstileDisabled])
+
+  if (isTurnstileDisabled) {
+    return null
+  }
 
   return (
     <div className={`flex flex-col items-center justify-center my-2 select-none ${className}`}>

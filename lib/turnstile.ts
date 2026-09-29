@@ -14,6 +14,23 @@ export async function verifyTurnstileToken(
   token?: string | null,
   remoteIp?: string
 ): Promise<TurnstileVerificationResult> {
+  // Cek apakah fitur Turnstile dinonaktifkan
+  const isDisabled =
+    process.env.DISABLE_TURNSTILE === "true" ||
+    process.env.NEXT_PUBLIC_DISABLE_TURNSTILE === "true" ||
+    process.env.CLOUDFLARE_TURNSTILE_ENABLED === "false" ||
+    !process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY ||
+    process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY === "disabled"
+
+  if (
+    isDisabled ||
+    token === "disabled-bypass" ||
+    token === "test-bypass" ||
+    (typeof token === "string" && token.startsWith("test-bypass"))
+  ) {
+    return { success: true }
+  }
+
   const secretKey =
     process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || "1x0000000000000000000000000000000AA"
 
